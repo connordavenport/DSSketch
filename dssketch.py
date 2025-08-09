@@ -19,6 +19,7 @@ Features:
 
 import re
 import json
+import yaml
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any, Set
 from dataclasses import dataclass, field
@@ -27,6 +28,7 @@ from dataclasses import dataclass, field
 from fontTools.designspaceLib import (
     DesignSpaceDocument,
     AxisDescriptor,
+    DiscreteAxisDescriptor,
     SourceDescriptor,
     InstanceDescriptor,
     RuleDescriptor,
@@ -500,6 +502,11 @@ class DesignSpaceToDSL:
         """Convert DesignSpace document to DSL document"""
         dsl_doc = DSLDocument(family=self._extract_family_name(ds_doc))
         
+        # Determine common path for masters
+        masters_path = self._determine_masters_path(ds_doc)
+        if masters_path:
+            dsl_doc.path = masters_path
+        
         # Convert axes
         for axis in ds_doc.axes:
             dsl_axis = self._convert_axis(axis)
@@ -507,7 +514,7 @@ class DesignSpaceToDSL:
         
         # Convert masters/sources
         for source in ds_doc.sources:
-            dsl_master = self._convert_source(source, ds_doc)
+            dsl_master = self._convert_source(source, ds_doc, masters_path)
             dsl_doc.masters.append(dsl_master)
         
         # Convert instances (optional - can be auto-generated)
@@ -530,6 +537,43 @@ class DesignSpaceToDSL:
         elif ds_doc.sources:
             return ds_doc.sources[0].familyName or "Unknown"
         return "Unknown"
+    
+    def _determine_masters_path(self, ds_doc: DesignSpaceDocument) -> Optional[str]:
+        """Determine common path for all masters"""
+        if not ds_doc.sources:
+            return None
+        
+        # Collect all master paths
+        master_paths = []
+        for source in ds_doc.sources:
+            if source.filename:
+                master_paths.append(Path(source.filename))
+        
+        if not master_paths:
+            return None
+        
+        # Find common directory
+        # First, check if all masters are in the same directory
+        directories = set()
+        for path in master_paths:
+            if path.parent != Path('.'):
+                directories.add(path.parent)
+        
+        # If all masters are in root directory (no parent path)
+        if not directories:
+            return None  # Masters are in root, no need to specify path
+        
+        # If all masters are in the same directory
+        if len(directories) == 1:
+            common_dir = directories.pop()
+            # Return as string, converting to forward slashes for consistency
+            return str(common_dir).replace('\\', '/')
+        
+        # Masters are in different directories
+        # Return None to keep individual paths in each master
+        print(f"⚠️  Warning: Masters are in different directories: {', '.join(str(d) for d in directories)}")
+        print("   Individual paths will be preserved for each master.")
+        return None
     
     def _convert_axis(self, axis: AxisDescriptor) -> DSLAxis:
         """Convert DesignSpace axis to DSL axis"""
@@ -586,10 +630,16 @@ class DesignSpaceToDSL:
         
         return dsl_axis
     
-    def _convert_source(self, source: SourceDescriptor, ds_doc: DesignSpaceDocument) -> DSLMaster:
+    def _convert_source(self, source: SourceDescriptor, ds_doc: DesignSpaceDocument, masters_path: Optional[str] = None) -> DSLMaster:
         """Convert DesignSpace source to DSL master"""
         # Extract name from filename
-        name = Path(source.filename or "").stem
+        filename = source.filename or ""
+        name = Path(filename).stem
+        
+        # If we have a common masters path, strip it from the filename
+        if masters_path and filename.startswith(masters_path):
+            # Remove the common path from filename
+            filename = filename[len(masters_path):].lstrip('/')
         
         # Determine if this is a base master
         is_base = bool(source.copyLib or source.copyInfo or 
@@ -597,7 +647,7 @@ class DesignSpaceToDSL:
         
         return DSLMaster(
             name=name,
-            filename=source.filename or f"{name}.ufo",
+            filename=filename or f"{name}.ufo",
             location=dict(source.location),
             is_base=is_base,
             copy_lib=source.copyLib,
@@ -721,14 +771,18 @@ class DSLWriter:
         # Determine axis name for output (shortened if registered)
         axis_name = self._get_axis_display_name(axis.name, axis.tag)
         
-        # Axis header with range
-        if axis.minimum == axis.default == axis.maximum:
-            # Binary axis
+        # Axis header with range - detect discrete axes by values
+        is_discrete = (axis.minimum == 0 and axis.default == 0 and axis.maximum == 1 and 
+                      axis.name.lower() in ['italic', 'ital'])
+        
+        if is_discrete:
+            # Standard discrete axis (like italic) - use 'discrete' keyword
             if axis_name:
-                lines.append(f"    {axis_name} {axis.tag} binary")
+                lines.append(f"    {axis_name} {axis.tag} discrete")
             else:
-                lines.append(f"    {axis.tag} binary")
+                lines.append(f"    {axis.tag} discrete")
         else:
+            # Continuous axis or non-standard discrete axis
             if axis_name:
                 lines.append(f"    {axis_name} {axis.tag} {axis.minimum}:{axis.default}:{axis.maximum}")
             else:
@@ -737,15 +791,24 @@ class DSLWriter:
         # Mappings
         if axis.mappings:
             for mapping in axis.mappings:
-                # Check if we can use compact form (name only)
-                std_user_val = Standards.get_user_value_for_name(mapping.label, axis.name)
-                
-                if std_user_val == mapping.user_value and self.optimize:
-                    # Compact form: just "Regular > 125"
-                    lines.append(f"        {mapping.label} > {mapping.design_value}")
+                # Check if this is a discrete axis with simplified format
+                if is_discrete and mapping.user_value == mapping.design_value:
+                    # Simplified discrete format: just "Upright" or "Italic"
+                    lines.append(f"        {mapping.label}")
                 else:
-                    # Full form: "400 Regular > 125"
-                    lines.append(f"        {mapping.user_value} {mapping.label} > {mapping.design_value}")
+                    # Traditional format
+                    # Check if we can use compact form (name only)
+                    try:
+                        std_user_val = Standards.get_user_value_for_name(mapping.label, axis.name)
+                        if std_user_val == mapping.user_value and self.optimize:
+                            # Compact form: just "Regular > 125"
+                            lines.append(f"        {mapping.label} > {mapping.design_value}")
+                        else:
+                            # Full form: "400 Regular > 125"
+                            lines.append(f"        {mapping.user_value} {mapping.label} > {mapping.design_value}")
+                    except Exception:
+                        # Full form when standard lookup fails
+                        lines.append(f"        {mapping.user_value} {mapping.label} > {mapping.design_value}")
         
         return lines
     
@@ -775,7 +838,14 @@ class DSLWriter:
             value = master.location.get(axis.name, 0)
             coords.append(str(int(value) if value.is_integer() else value))
         
-        line = f"    {master.name} [{', '.join(coords)}]"
+        # Use filename if it contains path, otherwise use name
+        if '/' in master.filename:
+            # Remove .ufo extension for display
+            display_name = master.filename.replace('.ufo', '')
+        else:
+            display_name = master.name
+        
+        line = f"    {display_name} [{', '.join(coords)}]"
         
         if master.is_base:
             line += " @base"
@@ -924,6 +994,26 @@ class DSLParser:
         self.document = DSLDocument(family="")
         self.current_section = None
         self.current_axis = None
+        self.discrete_labels = self._load_discrete_labels()
+    
+    def _load_discrete_labels(self) -> Dict[str, Dict[int, List[str]]]:
+        """Load discrete axis labels from YAML file"""
+        try:
+            data_dir = Path(__file__).parent / "data"
+            with open(data_dir / "discrete-axis-labels.yaml", 'r') as f:
+                return yaml.safe_load(f) or {}
+        except (FileNotFoundError, Exception):
+            # Default fallback if file not found
+            return {
+                'ital': {
+                    0: ['Upright', 'Roman', 'Normal'],
+                    1: ['Italic']
+                },
+                'slnt': {
+                    0: ['Upright', 'Normal'],  
+                    1: ['Slanted', 'Oblique']
+                }
+            }
         
     def parse_file(self, filepath: str) -> DSLDocument:
         """Parse DSL file"""
@@ -1008,10 +1098,10 @@ class DSLParser:
             name = parts[0]
             tag = parts[1]
             
-            # Parse range or binary
+            # Parse range, binary, or discrete
             if len(parts) > 2:
                 range_part = parts[2]
-                if range_part == 'binary':
+                if range_part in ['binary', 'discrete']:
                     minimum, default, maximum = 0, 0, 1
                 elif ':' in range_part:
                     values = range_part.split(':')
@@ -1032,10 +1122,10 @@ class DSLParser:
             # Get standard name from tag
             name = self.TAG_TO_NAME.get(tag, tag.upper())
             
-            # Parse range or binary
+            # Parse range, binary, or discrete
             if len(parts) > 1:
                 range_part = parts[1]
-                if range_part == 'binary':
+                if range_part in ['binary', 'discrete']:
                     minimum, default, maximum = 0, 0, 1
                 elif ':' in range_part:
                     values = range_part.split(':')
@@ -1046,7 +1136,7 @@ class DSLParser:
                     minimum = default = maximum = float(range_part)
             else:
                 minimum = default = maximum = 0
-        elif re.match(r'^\w+\s+([\d.:-]+|binary)', line) and '>' not in line:
+        elif re.match(r'^\w+\s+([\d.:-]+|binary|discrete)', line) and '>' not in line:
             # Legacy form: "weight 100:400:900" (infer tag from name)
             parts = line.split()
             name = parts[0]
@@ -1065,10 +1155,10 @@ class DSLParser:
             else:
                 tag = name[:4].upper()  # Use first 4 chars as tag
             
-            # Parse range or binary
+            # Parse range, binary, or discrete
             if len(parts) > 1:
                 range_part = parts[1]
-                if range_part == 'binary':
+                if range_part in ['binary', 'discrete']:
                     minimum, default, maximum = 0, 0, 1
                 elif ':' in range_part:
                     values = range_part.split(':')
@@ -1081,8 +1171,10 @@ class DSLParser:
                 minimum = default = maximum = 0
         else:
             # Not an axis definition, might be a mapping
-            if '>' in line and self.current_axis:
-                self._parse_axis_mapping(line)
+            if self.current_axis:
+                # Check for traditional format with > or simplified format
+                if '>' in line or (line.strip() and not line.startswith(' '*8)):
+                    self._parse_axis_mapping(line)
             return
         
         self.current_axis = DSLAxis(
@@ -1093,23 +1185,56 @@ class DSLParser:
     
     def _parse_axis_mapping(self, line: str):
         """Parse axis mapping line"""
-        parts = line.split('>')
-        left = parts[0].strip()
-        design = float(parts[1].strip())
+        # Check if this is a discrete axis (min=0, default=0, max=1)
+        is_discrete = (self.current_axis.minimum == 0 and 
+                      self.current_axis.default == 0 and 
+                      self.current_axis.maximum == 1)
         
-        # Parse left side
-        left_parts = left.split()
-        
-        if left_parts[0].replace('.', '').replace('-', '').isdigit():
-            # Format: "300 Light"
-            user = float(left_parts[0])
-            label = ' '.join(left_parts[1:]) if len(left_parts) > 1 else ""
-            if not label:
-                label = Standards.get_name_for_user_value(user, self.current_axis.name)
+        if '>' in line:
+            # Traditional format: "300 Light > 295" or "0.0 Upright > 0.0"
+            parts = line.split('>')
+            left = parts[0].strip()
+            design = float(parts[1].strip())
+            
+            # Parse left side
+            left_parts = left.split()
+            
+            if left_parts[0].replace('.', '').replace('-', '').isdigit():
+                # Format: "300 Light" or "0.0 Upright"
+                user = float(left_parts[0])
+                label = ' '.join(left_parts[1:]) if len(left_parts) > 1 else ""
+                if not label:
+                    label = Standards.get_name_for_user_value(user, self.current_axis.name)
+            else:
+                # Format: "Light" - infer user value
+                label = left
+                user = Standards.get_user_value_for_name(label, self.current_axis.name)
         else:
-            # Format: "Light" - infer user value
-            label = left
-            user = Standards.get_user_value_for_name(label, self.current_axis.name)
+            # Simplified format for discrete axes: just "Upright" or "Italic"
+            if not is_discrete:
+                raise ValueError(f"Simplified label format only supported for discrete axes: {line}")
+            
+            label = line.strip()
+            
+            # Find user and design values from discrete labels
+            axis_tag = self.current_axis.tag
+            user = None
+            design = None
+            
+            if axis_tag in self.discrete_labels:
+                for value, labels in self.discrete_labels[axis_tag].items():
+                    if label in labels:
+                        user = float(value)
+                        design = float(value)  # For discrete axes, design = user
+                        break
+            
+            if user is None:
+                # Fallback: try standard mappings
+                try:
+                    user = Standards.get_user_value_for_name(label, self.current_axis.name)
+                    design = user
+                except Exception:
+                    raise ValueError(f"Unknown discrete axis label: {label}")
         
         mapping = DSLAxisMapping(
             user_value=user,
@@ -1142,11 +1267,14 @@ class DSLParser:
             if i < len(coords):
                 location[axis.name] = coords[i]
         
-        # Determine filename
-        filename = f"{name}.ufo"
-        if '/' in name or '.' in name:
-            filename = name
+        # Determine filename and name
+        if '/' in name:
+            # Path is included in the name
+            filename = name if name.endswith('.ufo') else f"{name}.ufo"
             name = Path(name).stem
+        else:
+            # Simple name without path
+            filename = f"{name}.ufo"
         
         master = DSLMaster(
             name=name,
@@ -1332,35 +1460,28 @@ class DSLToDesignSpace:
         
         return doc
     
-    def _convert_axis(self, dsl_axis: DSLAxis) -> AxisDescriptor:
-        """Convert DSL axis to DesignSpace axis"""
-        axis = AxisDescriptor()
-        axis.name = dsl_axis.name
-        axis.tag = dsl_axis.tag
+    def _convert_axis(self, dsl_axis: DSLAxis):
+        """Convert DSL axis to DesignSpace axis (returns AxisDescriptor or DiscreteAxisDescriptor)"""
+        # Check if this is a discrete axis (like italic)
+        is_discrete = (dsl_axis.minimum == 0 and dsl_axis.maximum == 1 and 
+                      dsl_axis.name.lower() in ['italic', 'ital'])
         
-        # Add labelname (localized axis name)
-        axis.labelNames = {
-            'en': dsl_axis.name.title()  # Weight, Italic, etc.
-        }
-        
-        # Check if this is a binary/discrete axis (like italic)
-        is_binary = (dsl_axis.minimum == 0 and dsl_axis.maximum == 1 and 
-                    dsl_axis.name.lower() in ['italic', 'ital'])
-        
-        # Always set basic properties first
-        axis.minimum = dsl_axis.minimum
-        axis.default = dsl_axis.default 
-        axis.maximum = dsl_axis.maximum
-        
-        if is_binary:
-            # For binary axis, also add values (both are supported)
+        if is_discrete:
+            # Create DiscreteAxisDescriptor for discrete axes
+            axis = DiscreteAxisDescriptor()
+            axis.name = dsl_axis.name
+            axis.tag = dsl_axis.tag
+            axis.labelNames = {
+                'en': dsl_axis.name.title()  # Weight, Italic, etc.
+            }
             axis.values = [0, 1]
+            axis.default = dsl_axis.default
             
-            # Add standard binary labels if no custom mappings provided
+            # Add discrete labels
             axis.axisLabels = []
             
             if not dsl_axis.mappings:
-                # Default binary labels for italic
+                # Default discrete labels for italic
                 upright_label = AxisLabelDescriptor(
                     name="Upright",
                     userValue=0,
@@ -1373,7 +1494,7 @@ class DSLToDesignSpace:
                 )
                 axis.axisLabels = [upright_label, italic_label]
             else:
-                # Use custom mappings
+                # Use custom mappings for discrete axis labels
                 for mapping in dsl_axis.mappings:
                     label_desc = AxisLabelDescriptor(
                         name=mapping.label,
@@ -1382,6 +1503,17 @@ class DSLToDesignSpace:
                     )
                     axis.axisLabels.append(label_desc)
         else:
+            # Create regular AxisDescriptor for continuous axes  
+            axis = AxisDescriptor()
+            axis.name = dsl_axis.name
+            axis.tag = dsl_axis.tag
+            axis.labelNames = {
+                'en': dsl_axis.name.title()  # Weight, Italic, etc.
+            }
+            axis.minimum = dsl_axis.minimum
+            axis.default = dsl_axis.default 
+            axis.maximum = dsl_axis.maximum
+            
             # Continuous axis - add mappings and labels
             axis.map = []
             axis.axisLabels = []
@@ -1403,7 +1535,17 @@ class DSLToDesignSpace:
     def _convert_master(self, dsl_master: DSLMaster, dsl_doc: DSLDocument) -> SourceDescriptor:
         """Convert DSL master to DesignSpace source"""
         source = SourceDescriptor()
-        source.filename = dsl_master.filename
+        
+        # If path is specified in DSL document, prepend it to filename
+        if dsl_doc.path:
+            # Ensure path uses forward slashes for consistency
+            path = dsl_doc.path.replace('\\', '/')
+            if not path.endswith('/'):
+                path += '/'
+            source.filename = path + dsl_master.filename
+        else:
+            source.filename = dsl_master.filename
+            
         source.familyName = dsl_doc.family
         source.styleName = dsl_master.name
         source.location = dsl_master.location.copy()
@@ -1504,126 +1646,14 @@ class DSLToDesignSpace:
 # CLI Interface
 # ============================================================================
 
-def main():
-    """Command-line interface for DesignSpace Sketch"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(
-        prog='dssketch',
-        description='DesignSpace Sketch - Convert between .dssketch and .designspace formats'
-    )
-    parser.add_argument('input', help='Input file (.dssketch or .designspace)')
-    parser.add_argument('-o', '--output', help='Output file (optional)')
-    parser.add_argument('--format', choices=['dssketch', 'dsl', 'designspace', 'auto'], 
-                       default='auto', help='Output format (dsl is alias for dssketch)')
-    parser.add_argument('--optimize', action='store_true', default=True,
-                       help='Optimize DSSketch output (default: True)')
-    parser.add_argument('--no-optimize', action='store_false', dest='optimize',
-                       help='Disable DSSketch optimization')
-    parser.add_argument('--validate-ufos', action='store_true', 
-                       help='Validate UFO master files existence and structure')
-    parser.add_argument('--strict', action='store_true',
-                       help='Fail on missing UFO files (use with --validate-ufos)')
-    
-    args = parser.parse_args()
-    
-    input_path = Path(args.input)
-    
-    if not input_path.exists():
-        print(f"Error: Input file {input_path} does not exist")
-        return 1
-    
-    try:
-        # Determine output format
-        output_format = args.format
-        if output_format == 'auto':
-            # Auto-detect based on input extension
-            if input_path.suffix.lower() == '.dssketch':
-                output_format = 'designspace'
-            elif input_path.suffix.lower() == '.designspace':
-                output_format = 'dssketch'
-            else:
-                print(f"Error: Cannot auto-detect format for {input_path.suffix}")
-                print("Supported input formats: .dssketch, .designspace")
-                print("Use --format to specify output format explicitly")
-                return 1
-        
-        # Normalize dsl to dssketch
-        if output_format == 'dsl':
-            output_format = 'dssketch'
-        
-        # Determine conversion direction
-        if output_format == 'designspace':
-            # Convert to DesignSpace
-            if input_path.suffix.lower() == '.dssketch':
-                parser = DSLParser()
-                dsl_doc = parser.parse_file(str(input_path))
-                
-                # Validate UFO files if requested
-                if args.validate_ufos:
-                    validation_report = UFOValidator.validate_ufo_files(dsl_doc, str(input_path))
-                    
-                    # Print validation results
-                    if validation_report.has_errors:
-                        print("❌ UFO Validation Errors:")
-                        for error in validation_report.path_errors:
-                            print(f"  - Path error: {error}")
-                        for missing in validation_report.missing_files:
-                            print(f"  - Missing UFO: {missing}")
-                        for invalid in validation_report.invalid_ufos:
-                            print(f"  - Invalid UFO: {invalid}")
-                        
-                        if args.strict:
-                            return 1
-                    
-                    if validation_report.has_warnings:
-                        print("⚠️  UFO Validation Warnings:")
-                        for warning in validation_report.warnings:
-                            print(f"  - {warning}")
-                    
-                    if not validation_report.has_errors and not validation_report.has_warnings:
-                        print("✅ All UFO files validated successfully")
-                
-                converter = DSLToDesignSpace()
-                ds_doc = converter.convert(dsl_doc)
-                
-                output_path = args.output or input_path.with_suffix('.designspace')
-                ds_doc.write(str(output_path))
-                print(f"Converted {input_path} -> {output_path}")
-            else:
-                print(f"Error: Cannot convert {input_path.suffix} to .designspace")
-                print("Input must be .dssketch file for conversion to .designspace")
-                return 1
-            
-        elif output_format == 'dssketch':
-            # Convert to DSSketch/DSL
-            if input_path.suffix.lower() == '.designspace':
-                converter = DesignSpaceToDSL()
-                dsl_doc = converter.convert_file(str(input_path))
-                
-                writer = DSLWriter(optimize=args.optimize)
-                dsl_content = writer.write(dsl_doc)
-                
-                output_path = args.output or input_path.with_suffix('.dssketch')
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(dsl_content)
-                print(f"Converted {input_path} -> {output_path}")
-            else:
-                print(f"Error: Cannot convert {input_path.suffix} to .dssketch")
-                print("Input must be .designspace file for conversion to .dssketch")
-                return 1
-            
-        else:
-            print(f"Error: Unknown output format: {output_format}")
-            print("Supported formats: dssketch, dsl, designspace, auto")
-            return 1
-            
-    except Exception as e:
-        print(f"Error during conversion: {e}")
-        return 1
-    
-    return 0
-
+# CLI functionality has been moved to dssketch_cli.py
+# To use the converter from command line, run:
+# python dssketch_cli.py <input_file>
+#
+# For backwards compatibility, you can also run:
+# python dssketch.py <input_file>
 
 if __name__ == '__main__':
+    # Import and run CLI when module is executed directly
+    from dssketch_cli import main
     exit(main())

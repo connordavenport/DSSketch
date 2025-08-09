@@ -13,14 +13,17 @@
 ## Использование
 
 ```bash
-# DesignSpace → DSSketch
-python dssketch.py font.designspace
+# DesignSpace → DSSketch (с автоматической валидацией UFO)
+python dssketch_cli.py font.designspace
 
 # DSSketch → DesignSpace  
-python dssketch.py font.dssketch
+python dssketch_cli.py font.dssketch
 
 # С явным указанием выходного файла
-python dssketch.py input.designspace -o output.dssketch
+python dssketch_cli.py input.designspace -o output.dssketch
+
+# Обратная совместимость (старый способ)
+python dssketch.py font.designspace
 ```
 
 ## Пример DSSketch формата
