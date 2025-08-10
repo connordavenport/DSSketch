@@ -13,7 +13,7 @@ DesignSpace rules control glyph substitutions based on axis conditions (weight, 
 The converter processes DesignSpace `<rule>` elements from `dssketch.py:717` in the `_convert_rule()` method:
 
 ```python
-def _convert_rule(self, rule: RuleDescriptor, ds_doc: DesignSpaceDocument) -> Optional[DSLRule]:
+def _convert_rule(self, rule: RuleDescriptor, ds_doc: DesignSpaceDocument) -> Optional[DSSRule]:
 ```
 
 ### 2. Substitution Extraction
@@ -28,7 +28,7 @@ def _convert_rule(self, rule: RuleDescriptor, ds_doc: DesignSpaceDocument) -> Op
 
 **Conversion process:**
 - Extracts all `<sub>` elements as (from_glyph, to_glyph) pairs
-- Stores as `substitutions` list in DSLRule object
+- Stores as `substitutions` list in DSSRule object
 
 ### 3. Condition Processing
 
@@ -262,19 +262,19 @@ DSSketch rules are typically 60-80% more compact than DesignSpace XML:
 ### Key Classes and Methods
 
 **Core Conversion:**
-- **`DesignSpaceToDSL._convert_rule()`** (line 717): Main DesignSpace → DSSketch conversion
-- **`DSLToDesignSpace._convert_rule()`** (line 1709): Main DSSketch → DesignSpace conversion
-- **`DSLRule`** (line 93): Data structure for rules
+- **`DesignSpaceToDSS._convert_rule()`** (line 717): Main DesignSpace → DSSketch conversion
+- **`DSSToDesignSpace._convert_rule()`** (line 1709): Main DSSketch → DesignSpace conversion
+- **`DSSRule`** (line 93): Data structure for rules
 
 **Parsing (New & Legacy):**
-- **`DSLParser._parse_rule_line()`** (line 1450): Parses both new parentheses and legacy @ syntax
-- **`DSLParser._parse_condition_string()`** (line 1399): Unified condition parsing for both syntaxes
-- **`DSLToDesignSpace._expand_wildcard_pattern()`** (line 1748): Expands wildcards with target validation
+- **`DSSParser._parse_rule_line()`** (line 1450): Parses both new parentheses and legacy @ syntax
+- **`DSSParser._parse_condition_string()`** (line 1399): Unified condition parsing for both syntaxes
+- **`DSSToDesignSpace._expand_wildcard_pattern()`** (line 1748): Expands wildcards with target validation
 
 **Output Generation:**
-- **`DSLWriter._format_rule()`** (line 905): Generates new parentheses syntax by default
-- **`DSLWriter._format_rule_name()`** (line 970): Handles auto-generated name omission
-- **`DSLWriter._detect_substitution_pattern()`** (line 976): Pattern optimization with validation
+- **`DSSWriter._format_rule()`** (line 905): Generates new parentheses syntax by default
+- **`DSSWriter._format_rule_name()`** (line 970): Handles auto-generated name omission
+- **`DSSWriter._detect_substitution_pattern()`** (line 976): Pattern optimization with validation
 
 ### Axis Name Mapping
 
@@ -333,7 +333,7 @@ dollar cent > .heavy  # ✅ CORRECT! Only specified glyphs
                return (explicit_pattern, common_suffix)
    ```
 
-2. **Updated DSLWriter constructor** to accept DesignSpace document and base path for glyph extraction:
+2. **Updated DSSWriter constructor** to accept DesignSpace document and base path for glyph extraction:
    ```python
    def __init__(self, optimize: bool = True, ds_doc: Optional[DesignSpaceDocument] = None, base_path: Optional[str] = None)
    ```
@@ -349,7 +349,7 @@ dollar cent > .heavy  # ✅ CORRECT! Only specified glyphs
 4. **Updated CLI** (dssketch_cli.py:127-131) to pass DesignSpace document to writer:
    ```python
    ds_doc = DesignSpaceDocument.fromfile(str(input_path))
-   writer = DSLWriter(optimize=True, ds_doc=ds_doc, base_path=str(input_path.parent))
+   writer = DSSWriter(optimize=True, ds_doc=ds_doc, base_path=str(input_path.parent))
    ```
 
 5. **Enhanced `_expand_wildcard_pattern()` method** (dssketch.py:1748) to validate target glyph existence:
@@ -425,7 +425,7 @@ python dssketch_cli.py examples/complex-rules.designspace
 python dssketch_cli.py examples/KazimirText-Variable-test.dssketch
 
 # Convert back to verify round-trip preservation  
-python dssketch_cli.py examples/complex-rules.dsl
+python dssketch_cli.py examples/complex-rules.dss
 ```
 
 **Example New Syntax Output:**

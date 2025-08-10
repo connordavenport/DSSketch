@@ -1,10 +1,10 @@
-# DSL2DesignSpace Converter - Полная спецификация для реализации
+# DSS2DesignSpace Converter - Полная спецификация для реализации
 
 ## 1. ОБЗОР ПРОЕКТА
 
 ### Цель
 
-Создать двунаправленный конвертер между компактным DSL (Domain-Specific Language) форматом и стандартным fontTools .designspace XML форматом для работы с вариативными шрифтами.
+Создать двунаправленный конвертер между компактным DSS (DesignSpace Sketch) форматом и стандартным fontTools .designspace XML форматом для работы с вариативными шрифтами.
 
 ### Проблема которую решаем
 
@@ -15,7 +15,7 @@
 
 ### Решение
 
-Компактный DSL формат, который:
+Компактный DSS формат, который:
 
 - Читаемый и понятный (50-100 строк вместо 1000+)
 - Поддерживает стандартные значения по умолчанию
@@ -60,11 +60,11 @@ STANDARD_WEIGHTS = {
 }
 ```
 
-## 3. ФОРМАТЫ DSL (от простого к сложному)
+## 3. ФОРМАТЫ DSS (от простого к сложному)
 
 ### 3.1 Базовый формат
 
-```dsl
+```dss
 family MyFont
 suffix VF
 
@@ -89,7 +89,7 @@ instances auto  # генерировать все комбинации
 
 ### 3.2 Компактный формат
 
-```dsl
+```dss
 family MyFont
 
 # Используем стандартные значения
@@ -101,7 +101,7 @@ masters 3×2  # автоматически найти по паттернам и
 
 ### 3.3 Расширенный формат с переопределениями
 
-```dsl
+```dss
 family MyFont
 
 axes
@@ -128,7 +128,7 @@ rules
 
 ### 3.4 Математический формат
 
-```dsl
+```dss
 weight mapping curve: cubic-bezier(0.42, 0, 0.58, 1)
 # или точки для сплайна
 weight 100:400:900
@@ -148,7 +148,7 @@ weight 100:400:900
 ```python
 # Модель данных
 @dataclass
-class DSLAxis:
+class DSSAxis:
     name: str
     tag: str
     minimum: float
@@ -157,28 +157,28 @@ class DSLAxis:
     mappings: List[AxisMapping]
     
 @dataclass
-class DSLMaster:
+class DSSMaster:
     name: str
     filepath: str
     location: Dict[str, float]  # axis_name -> design_value
     flags: Set[str]  # {'base', 'copy_lib', 'copy_features'}
     
 @dataclass
-class DSLDocument:
+class DSSDocument:
     family: str
-    axes: List[DSLAxis]
-    masters: List[DSLMaster]
-    instances: List[DSLInstance]
-    rules: List[DSLRule]
+    axes: List[DSSAxis]
+    masters: List[DSSMaster]
+    instances: List[DSSInstance]
+    rules: List[DSSRule]
 ```
 
-### 4.2 Парсер DSL
+### 4.2 Парсер DSS
 
 ```python
-class DSLParser:
+class DSSParser:
     """Многоуровневый парсер с поддержкой разных форматов"""
     
-    def parse(self, content: str) -> DSLDocument:
+    def parse(self, content: str) -> DSSDocument:
         # 1. Токенизация
         # 2. Определение формата (базовый/компактный/расширенный)
         # 3. Контекстный парсинг по секциям
@@ -190,9 +190,9 @@ class DSLParser:
 
 ```python
 class DesignSpaceGenerator:
-    """Генерирует .designspace из DSL"""
+    """Генерирует .designspace из DSS"""
     
-    def generate(self, dsl: DSLDocument) -> DesignSpaceDocument:
+    def generate(self, dss: DSSDocument) -> DesignSpaceDocument:
         # 1. Создание осей с маппингом
         # 2. Добавление мастеров с правильными location
         # 3. Генерация инстансов (auto или explicit)
@@ -244,16 +244,16 @@ def generate_instances(axes: List[Axis], strategy: str) -> List[Instance]:
 
 ### 6.1 Поддержка include
 
-```dsl
-include common-axes.dsl
-include brand-weights.dsl
+```dss
+include common-axes.dss
+include brand-weights.dss
 
 family MyFont extends CommonBase
 ```
 
 ### 6.2 Переменные и константы
 
-```dsl
+```dss
 $brand-weight = 425
 $company-blue = #0066CC
 
@@ -263,7 +263,7 @@ weight
 
 ### 6.3 Условная генерация
 
-```dsl
+```dss
 instances
     if has_italic:
         generate all combinations
@@ -273,7 +273,7 @@ instances
 
 ### 6.4 Валидация и предупреждения
 
-```dsl
+```dss
 validate
     ✓ Все углы покрыты
     ⚠️ Bold интерполируется (большое расстояние)
@@ -325,21 +325,21 @@ dssketch watch font.dssketch --auto-compile
 dsl2designspace/
 ├── src/
 │   ├── __init__.py
-│   ├── parser.py        # DSL парсер
+│   ├── parser.py        # DSS парсер
 │   ├── generator.py     # DesignSpace генератор
 │   ├── models.py        # Модели данных
 │   ├── validators.py    # Валидация и анализ
 │   ├── defaults.py      # Стандартные значения
 │   └── utils.py         # Вспомогательные функции
 ├── tests/
-│   ├── fixtures/        # Тестовые DSL и designspace файлы
+│   ├── fixtures/        # Тестовые DSS и designspace файлы
 │   ├── test_parser.py
 │   ├── test_generator.py
 │   └── test_roundtrip.py
 ├── examples/
-│   ├── simple.dsl
-│   ├── complex.dsl
-│   └── kazimir.dsl
+│   ├── simple.dss
+│   ├── complex.dss
+│   └── kazimir.dss
 └── cli.py              # CLI интерфейс
 
 ```
@@ -348,7 +348,7 @@ dsl2designspace/
 
 ### Фаза 1: MVP (Минимально работающий продукт)
 
-1. Базовый парсер DSL (простой формат)
+1. Базовый парсер DSS (простой формат)
 2. Генератор DesignSpace с осями и мастерами
 3. Поддержка маппинга user/design space
 4. CLI для конвертации
@@ -379,8 +379,8 @@ dsl2designspace/
 ### Пример 1: Создание нового семейства
 
 ```bash
-# Создаём DSL файл
-cat > myfont.dsl << EOF
+# Создаём DSS файл
+cat > myfont.dss << EOF
 family MyFont
 weight: Light Regular Bold
 italic: binary
@@ -389,7 +389,7 @@ instances: auto
 EOF
 
 # Генерируем designspace
-dsl2designspace convert myfont.dsl
+dssketch convert myfont.dss
 
 # Компилируем в вариативный шрифт
 fontmake -m myfont.designspace -o variable
@@ -398,21 +398,21 @@ fontmake -m myfont.designspace -o variable
 ### Пример 2: Миграция существующего проекта
 
 ```bash
-# Конвертируем существующий designspace в DSL
-dsl2designspace reverse oldfont.designspace -o newfont.dsl
+# Конвертируем существующий designspace в DSS
+dssketch reverse oldfont.designspace -o newfont.dss
 
-# Редактируем DSL (убираем лишнее, упрощаем)
-vim newfont.dsl
+# Редактируем DSS (убираем лишнее, упрощаем)
+vim newfont.dss
 
 # Генерируем обратно оптимизированный designspace
-dsl2designspace convert newfont.dsl --optimize
+dssketch convert newfont.dss --optimize
 ```
 
 ### Пример 3: Анализ покрытия
 
 ```bash
 # Проверяем покрытие дизайн-пространства
-dsl2designspace coverage font.dsl
+dssketch coverage font.dss
 
 # Вывод:
 # ✓ Углы покрыты: 100%
@@ -450,6 +450,6 @@ dsl2designspace coverage font.dsl
 
 ## ЗАКЛЮЧЕНИЕ
 
-Этот инструмент должен сделать работу с вариативными шрифтами значительно проще и понятнее. Ключевая идея - скрыть сложность XML формата за простым и выразительным DSL, при этом сохранив полную функциональность и добавив умные автоматизации.
+Этот инструмент должен сделать работу с вариативными шрифтами значительно проще и понятнее. Ключевая идея - скрыть сложность XML формата за простым и выразительным DSS, при этом сохранив полную функциональность и добавив умные автоматизации.
 
 Основной принцип: "Convention over Configuration" - работает из коробки для 90% случаев, но позволяет переопределить всё что нужно для оставшихся 10%.

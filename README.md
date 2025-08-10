@@ -92,14 +92,14 @@ Regular > 362  означает:
 
 - `KazimirText-Variable.designspace` → сложный пример с нелинейным маппингом
 - `Nagel_VF.designspace` → пример с наклоном (slant)
-- `kazimir-compact.dsl` → компактный DSL формат
+- `kazimir-compact.dss` → компактный DSS формат
 
 ## Архитектура
 
-- `DSLParser` - парсер DSL в структурированные данные
-- `DSLWriter` - генератор DSL из структурированных данных  
-- `DesignSpaceToDSL` - конвертер .designspace → DSL
-- `DSLToDesignSpace` - конвертер DSL → .designspace
+- `DSSParser` - парсер DSS в структурированные данные
+- `DSSWriter` - генератор DSS из структурированных данных  
+- `DesignSpaceToDSS` - конвертер .designspace → DSS
+- `DSSToDesignSpace` - конвертер DSS → .designspace
 - `Standards` - встроенные маппинги весов и ширин
 
 ## Возможности DSSketch

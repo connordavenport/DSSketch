@@ -9,9 +9,9 @@ Key concepts:
 - Mapping: Regular 400 > 125 means user requests 400, master is at 125
 
 Features:
-- Bidirectional conversion between .dsl and .designspace formats
+- Bidirectional conversion between .dss and .designspace formats
 - Smart defaults for standard weights/widths
-- Compact DSL syntax with auto-expansion
+- Compact DSS syntax with auto-expansion
 - Proper user/design space mapping
 - Shortened axis names for registered axes (wght, ital, opsz, slnt, wdth)
 - Uppercase notation for custom axes (CONTRAST CNTR)
@@ -44,21 +44,21 @@ from defcon import Font
 # ============================================================================
 
 @dataclass
-class DSLAxisMapping:
+class DSSAxisMapping:
     """Represents a single axis mapping point"""
     user_value: float        # User space value (400)
     design_value: float      # Design space value (125)
     label: str              # Name (Regular)
 
 @dataclass
-class DSLAxis:
-    """Represents an axis in DSL format"""
+class DSSAxis:
+    """Represents an axis in DSS format"""
     name: str
     tag: str
     minimum: float
     default: float
     maximum: float
-    mappings: List[DSLAxisMapping] = field(default_factory=list)
+    mappings: List[DSSAxisMapping] = field(default_factory=list)
     
     def get_design_value(self, user_value: float) -> float:
         """Convert user value to design value"""
@@ -69,8 +69,8 @@ class DSLAxis:
         return user_value
 
 @dataclass
-class DSLMaster:
-    """Represents a master/source in DSL format"""
+class DSSMaster:
+    """Represents a master/source in DSS format"""
     name: str
     filename: str
     location: Dict[str, float]  # axis_name -> design_value
@@ -81,8 +81,8 @@ class DSLMaster:
     copy_features: bool = False
 
 @dataclass
-class DSLInstance:
-    """Represents an instance in DSL format"""
+class DSSInstance:
+    """Represents an instance in DSS format"""
     name: str
     familyname: str
     stylename: str
@@ -90,7 +90,7 @@ class DSLInstance:
     location: Dict[str, float] = field(default_factory=dict)  # axis_name -> design_value
 
 @dataclass
-class DSLRule:
+class DSSRule:
     """Represents a substitution rule"""
     name: str
     substitutions: List[Tuple[str, str]]  # (from_glyph, to_glyph)
@@ -99,15 +99,15 @@ class DSLRule:
     to_pattern: Optional[str] = None  # target pattern like ".rvrn"
 
 @dataclass
-class DSLDocument:
-    """Complete DSL document structure"""
+class DSSDocument:
+    """Complete DSS document structure"""
     family: str
     suffix: str = ""
     path: str = ""  # Path to masters directory (relative to .dssketch file or absolute)
-    axes: List[DSLAxis] = field(default_factory=list)
-    masters: List[DSLMaster] = field(default_factory=list)
-    instances: List[DSLInstance] = field(default_factory=list)
-    rules: List[DSLRule] = field(default_factory=list)
+    axes: List[DSSAxis] = field(default_factory=list)
+    masters: List[DSSMaster] = field(default_factory=list)
+    instances: List[DSSInstance] = field(default_factory=list)
+    rules: List[DSSRule] = field(default_factory=list)
     variable_fonts: List[Dict] = field(default_factory=list)
     lib: Dict = field(default_factory=dict)
 
@@ -136,19 +136,19 @@ class UFOValidator:
     """Validate UFO files existence and basic structure"""
     
     @staticmethod
-    def validate_ufo_files(dsl_doc: DSLDocument, dssketch_file_path: str) -> ValidationReport:
+    def validate_ufo_files(dss_doc: DSSDocument, dssketch_file_path: str) -> ValidationReport:
         """Validate UFO files existence and basic structure"""
         report = ValidationReport()
         
         # Determine base path for masters
         dssketch_dir = Path(dssketch_file_path).parent
         
-        if dsl_doc.path:
+        if dss_doc.path:
             # Path specified in DSSketch file
-            if Path(dsl_doc.path).is_absolute():
-                base_path = Path(dsl_doc.path)
+            if Path(dss_doc.path).is_absolute():
+                base_path = Path(dss_doc.path)
             else:
-                base_path = dssketch_dir / dsl_doc.path
+                base_path = dssketch_dir / dss_doc.path
         else:
             # Default: same directory as .dssketch file
             base_path = dssketch_dir
@@ -163,7 +163,7 @@ class UFOValidator:
             return report
         
         # Check each master file
-        for master in dsl_doc.masters:
+        for master in dss_doc.masters:
             ufo_path = base_path / master.filename
             
             if not ufo_path.exists():
@@ -518,11 +518,11 @@ Standards = UnifiedMappings
 
 
 # ============================================================================
-# DesignSpace to DSL Converter
+# DesignSpace to DSS Converter
 # ============================================================================
 
-class DesignSpaceToDSL:
-    """Convert DesignSpace to DSL format"""
+class DesignSpaceToDSS:
+    """Convert DesignSpace to DSS format"""
     
     def __init__(self):
         # Load external data
@@ -540,43 +540,43 @@ class DesignSpaceToDSL:
         except FileNotFoundError:
             pass
     
-    def convert_file(self, ds_path: str) -> DSLDocument:
-        """Convert DesignSpace file to DSL document"""
+    def convert_file(self, ds_path: str) -> DSSDocument:
+        """Convert DesignSpace file to DSS document"""
         doc = DesignSpaceDocument()
         doc.read(ds_path)
         return self.convert(doc)
     
-    def convert(self, ds_doc: DesignSpaceDocument) -> DSLDocument:
-        """Convert DesignSpace document to DSL document"""
-        dsl_doc = DSLDocument(family=self._extract_family_name(ds_doc))
+    def convert(self, ds_doc: DesignSpaceDocument) -> DSSDocument:
+        """Convert DesignSpace document to DSS document"""
+        dss_doc = DSSDocument(family=self._extract_family_name(ds_doc))
         
         # Determine common path for masters
         masters_path = self._determine_masters_path(ds_doc)
         if masters_path:
-            dsl_doc.path = masters_path
+            dss_doc.path = masters_path
         
         # Convert axes
         for axis in ds_doc.axes:
-            dsl_axis = self._convert_axis(axis)
-            dsl_doc.axes.append(dsl_axis)
+            dss_axis = self._convert_axis(axis)
+            dss_doc.axes.append(dss_axis)
         
         # Convert masters/sources
         for source in ds_doc.sources:
-            dsl_master = self._convert_source(source, ds_doc, masters_path)
-            dsl_doc.masters.append(dsl_master)
+            dss_master = self._convert_source(source, ds_doc, masters_path)
+            dss_doc.masters.append(dss_master)
         
         # Convert instances (optional - can be auto-generated)
         for instance in ds_doc.instances:
-            dsl_instance = self._convert_instance(instance, ds_doc)
-            dsl_doc.instances.append(dsl_instance)
+            dss_instance = self._convert_instance(instance, ds_doc)
+            dss_doc.instances.append(dss_instance)
         
         # Convert rules
         for rule in ds_doc.rules:
-            dsl_rule = self._convert_rule(rule, ds_doc)
-            if dsl_rule:
-                dsl_doc.rules.append(dsl_rule)
+            dss_rule = self._convert_rule(rule, ds_doc)
+            if dss_rule:
+                dss_doc.rules.append(dss_rule)
         
-        return dsl_doc
+        return dss_doc
     
     def _extract_family_name(self, ds_doc: DesignSpaceDocument) -> str:
         """Extract family name from DesignSpace document"""
@@ -623,8 +623,8 @@ class DesignSpaceToDSL:
         print("   Individual paths will be preserved for each master.")
         return None
     
-    def _convert_axis(self, axis: AxisDescriptor) -> DSLAxis:
-        """Convert DesignSpace axis to DSL axis"""
+    def _convert_axis(self, axis: AxisDescriptor) -> DSSAxis:
+        """Convert DesignSpace axis to DSS axis"""
         # Handle discrete axes (like italic)
         if hasattr(axis, 'values') and axis.values:
             # Discrete axis
@@ -638,7 +638,7 @@ class DesignSpaceToDSL:
             maximum = getattr(axis, 'maximum', 1000)
             default = getattr(axis, 'default', minimum)
         
-        dsl_axis = DSLAxis(
+        dss_axis = DSSAxis(
             name=axis.name,
             tag=axis.tag,
             minimum=minimum,
@@ -666,20 +666,20 @@ class DesignSpaceToDSL:
                 user_val = label.userValue
                 design_val = mappings_dict.get(user_val, user_val)
                 
-                mapping = DSLAxisMapping(
+                mapping = DSSAxisMapping(
                     user_value=user_val,
                     design_value=design_val,
                     label=label.name
                 )
-                dsl_axis.mappings.append(mapping)
+                dss_axis.mappings.append(mapping)
         
         # Sort mappings by user value
-        dsl_axis.mappings.sort(key=lambda m: m.user_value)
+        dss_axis.mappings.sort(key=lambda m: m.user_value)
         
-        return dsl_axis
+        return dss_axis
     
-    def _convert_source(self, source: SourceDescriptor, ds_doc: DesignSpaceDocument, masters_path: Optional[str] = None) -> DSLMaster:
-        """Convert DesignSpace source to DSL master"""
+    def _convert_source(self, source: SourceDescriptor, ds_doc: DesignSpaceDocument, masters_path: Optional[str] = None) -> DSSMaster:
+        """Convert DesignSpace source to DSS master"""
         # Extract name from filename
         filename = source.filename or ""
         name = Path(filename).stem
@@ -693,7 +693,7 @@ class DesignSpaceToDSL:
         is_base = bool(source.copyLib or source.copyInfo or 
                       source.copyGroups or source.copyFeatures)
         
-        return DSLMaster(
+        return DSSMaster(
             name=name,
             filename=filename or f"{name}.ufo",
             location=dict(source.location),
@@ -704,9 +704,9 @@ class DesignSpaceToDSL:
             copy_features=source.copyFeatures
         )
     
-    def _convert_instance(self, instance: InstanceDescriptor, ds_doc: DesignSpaceDocument) -> DSLInstance:
-        """Convert DesignSpace instance to DSL instance"""
-        return DSLInstance(
+    def _convert_instance(self, instance: InstanceDescriptor, ds_doc: DesignSpaceDocument) -> DSSInstance:
+        """Convert DesignSpace instance to DSS instance"""
+        return DSSInstance(
             name=instance.styleName or "",
             familyname=instance.familyName or "",
             stylename=instance.styleName or "",
@@ -714,8 +714,8 @@ class DesignSpaceToDSL:
             location=dict(instance.location)
         )
     
-    def _convert_rule(self, rule: RuleDescriptor, ds_doc: DesignSpaceDocument) -> Optional[DSLRule]:
-        """Convert DesignSpace rule to DSL rule"""
+    def _convert_rule(self, rule: RuleDescriptor, ds_doc: DesignSpaceDocument) -> Optional[DSSRule]:
+        """Convert DesignSpace rule to DSS rule"""
         if not rule.subs:
             return None
         
@@ -743,7 +743,7 @@ class DesignSpaceToDSL:
                     'maximum': condition.maximum
                 })
         
-        return DSLRule(
+        return DSSRule(
             name=rule.name or "rule",
             substitutions=substitutions,
             conditions=conditions
@@ -751,11 +751,11 @@ class DesignSpaceToDSL:
 
 
 # ============================================================================
-# DSL Writer
+# DSS Writer
 # ============================================================================
 
-class DSLWriter:
-    """Write DSL document to string format"""
+class DSSWriter:
+    """Write DSS document to string format"""
     
     # Registered axis names that can be omitted for brevity
     REGISTERED_AXES = {
@@ -771,50 +771,50 @@ class DSLWriter:
         self.ds_doc = ds_doc
         self.base_path = base_path
     
-    def write(self, dsl_doc: DSLDocument) -> str:
-        """Generate DSL string from document"""
+    def write(self, dss_doc: DSSDocument) -> str:
+        """Generate DSS string from document"""
         lines = []
         
         # Family declaration
-        lines.append(f"family {dsl_doc.family}")
-        if dsl_doc.suffix:
-            lines.append(f"suffix {dsl_doc.suffix}")
-        if dsl_doc.path:
-            lines.append(f"path {dsl_doc.path}")
+        lines.append(f"family {dss_doc.family}")
+        if dss_doc.suffix:
+            lines.append(f"suffix {dss_doc.suffix}")
+        if dss_doc.path:
+            lines.append(f"path {dss_doc.path}")
         lines.append("")
         
         # Axes section
-        if dsl_doc.axes:
+        if dss_doc.axes:
             lines.append("axes")
-            for axis in dsl_doc.axes:
+            for axis in dss_doc.axes:
                 lines.extend(self._format_axis(axis))
             lines.append("")
         
         # Masters section
-        if dsl_doc.masters:
+        if dss_doc.masters:
             lines.append("masters")
-            for master in dsl_doc.masters:
-                lines.append(self._format_master(master, dsl_doc.axes))
+            for master in dss_doc.masters:
+                lines.append(self._format_master(master, dss_doc.axes))
             lines.append("")
         
         # Rules section
-        if dsl_doc.rules:
+        if dss_doc.rules:
             lines.append("rules")
-            for rule in dsl_doc.rules:
+            for rule in dss_doc.rules:
                 lines.extend(self._format_rule(rule))
             lines.append("")
         
         # Instances (if not using auto)
-        if dsl_doc.instances and not self.optimize:
+        if dss_doc.instances and not self.optimize:
             lines.append("instances")
-            for instance in dsl_doc.instances:
-                lines.append(self._format_instance(instance, dsl_doc.axes))
+            for instance in dss_doc.instances:
+                lines.append(self._format_instance(instance, dss_doc.axes))
         elif self.optimize:
             lines.append("instances auto")
         
         return "\n".join(lines).strip()
     
-    def _format_axis(self, axis: DSLAxis) -> List[str]:
+    def _format_axis(self, axis: DSSAxis) -> List[str]:
         """Format axis definition"""
         lines = []
         
@@ -880,7 +880,7 @@ class DSLWriter:
         # For registered axes with non-standard tags, keep original name
         return axis_name
     
-    def _format_master(self, master: DSLMaster, axes: List[DSLAxis]) -> str:
+    def _format_master(self, master: DSSMaster, axes: List[DSSAxis]) -> str:
         """Format master definition"""
         # Get coordinates in axis order
         coords = []
@@ -902,7 +902,7 @@ class DSLWriter:
         
         return line
     
-    def _format_rule(self, rule: DSLRule) -> List[str]:
+    def _format_rule(self, rule: DSSRule) -> List[str]:
         """Format rule definition"""
         lines = []
         
@@ -1054,7 +1054,7 @@ class DSLWriter:
         
         return None
     
-    def _format_instance(self, instance: DSLInstance, axes: List[DSLAxis]) -> str:
+    def _format_instance(self, instance: DSSInstance, axes: List[DSSAxis]) -> str:
         """Format instance definition"""
         coords = []
         for axis in axes:
@@ -1065,11 +1065,11 @@ class DSLWriter:
 
 
 # ============================================================================
-# DSL Parser (Enhanced)
+# DSS Parser (Enhanced)
 # ============================================================================
 
-class DSLParser:
-    """Parse DSL format into structured data"""
+class DSSParser:
+    """Parse DSS format into structured data"""
     
     # Tag to standard name mapping for registered axes
     TAG_TO_NAME = {
@@ -1081,7 +1081,7 @@ class DSLParser:
     }
     
     def __init__(self):
-        self.document = DSLDocument(family="")
+        self.document = DSSDocument(family="")
         self.current_section = None
         self.current_axis = None
         self.discrete_labels = self._load_discrete_labels()
@@ -1106,14 +1106,14 @@ class DSLParser:
                 }
             }
         
-    def parse_file(self, filepath: str) -> DSLDocument:
-        """Parse DSL file"""
+    def parse_file(self, filepath: str) -> DSSDocument:
+        """Parse DSS file"""
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
         return self.parse(content)
     
-    def parse(self, content: str) -> DSLDocument:
-        """Parse DSL content"""
+    def parse(self, content: str) -> DSSDocument:
+        """Parse DSS content"""
         lines = content.split('\n')
         
         for line_no, line in enumerate(lines, 1):
@@ -1288,7 +1288,7 @@ class DSLParser:
                     self._parse_axis_mapping(line)
             return
         
-        self.current_axis = DSLAxis(
+        self.current_axis = DSSAxis(
             name=name, tag=tag,
             minimum=minimum, default=default, maximum=maximum
         )
@@ -1347,7 +1347,7 @@ class DSLParser:
                 except Exception:
                     raise ValueError(f"Unknown discrete axis label: {label}")
         
-        mapping = DSLAxisMapping(
+        mapping = DSSAxisMapping(
             user_value=user,
             design_value=design,
             label=label
@@ -1387,7 +1387,7 @@ class DSLParser:
             # Simple name without path
             filename = f"{name}.ufo"
         
-        master = DSLMaster(
+        master = DSSMaster(
             name=name,
             filename=filename,
             location=location,
@@ -1472,10 +1472,10 @@ class DSLParser:
                 if not rule_name:
                     rule_name = f"rule{len(self.document.rules) + 1}"
                 
-                # Create DSLRule
+                # Create DSSRule
                 if ' ' in from_part and ('*' in from_part or len(from_part.split()) > 1):
                     # Wildcard or multi-glyph pattern
-                    rule = DSLRule(
+                    rule = DSSRule(
                         name=rule_name,
                         substitutions=[],  # Will be populated when converting to DesignSpace
                         conditions=conditions,
@@ -1484,7 +1484,7 @@ class DSLParser:
                     )
                 else:
                     # Single substitution
-                    rule = DSLRule(
+                    rule = DSSRule(
                         name=rule_name,
                         substitutions=[(from_part, from_part + to_part if to_part.startswith('.') else to_part)],
                         conditions=conditions
@@ -1518,7 +1518,7 @@ class DSLParser:
             for axis_name, values in axis_values.items():
                 for user_val, label, design_val in values:
                     if label in ['Regular', 'Bold', 'Light']:
-                        instance = DSLInstance(
+                        instance = DSSInstance(
                             name=label,
                             familyname=self.document.family,
                             stylename=label,
@@ -1528,64 +1528,64 @@ class DSLParser:
 
 
 # ============================================================================
-# DSL to DesignSpace Converter
+# DSS to DesignSpace Converter
 # ============================================================================
 
-class DSLToDesignSpace:
-    """Convert DSL to DesignSpace format"""
+class DSSToDesignSpace:
+    """Convert DSS to DesignSpace format"""
     
     def __init__(self, base_path: Optional[Path] = None):
         """Initialize converter with optional base path for UFO files"""
         self.base_path = base_path
     
-    def convert(self, dsl_doc: DSLDocument) -> DesignSpaceDocument:
-        """Convert DSL document to DesignSpace document"""
+    def convert(self, dss_doc: DSSDocument) -> DesignSpaceDocument:
+        """Convert DSS document to DesignSpace document"""
         doc = DesignSpaceDocument()
         
         # Convert axes
-        for dsl_axis in dsl_doc.axes:
-            axis = self._convert_axis(dsl_axis)
+        for dss_axis in dss_doc.axes:
+            axis = self._convert_axis(dss_axis)
             doc.addAxis(axis)
         
         # Convert masters/sources
-        for dsl_master in dsl_doc.masters:
-            source = self._convert_master(dsl_master, dsl_doc)
+        for source_index, dss_master in enumerate(dss_doc.masters, 1):
+            source = self._convert_master(dss_master, dss_doc, source_index)
             doc.addSource(source)
         
         # Convert instances
-        for dsl_instance in dsl_doc.instances:
-            instance = self._convert_instance(dsl_instance, dsl_doc)
+        for dss_instance in dss_doc.instances:
+            instance = self._convert_instance(dss_instance, dss_doc)
             doc.addInstance(instance)
         
         # Convert rules
-        for dsl_rule in dsl_doc.rules:
-            rule = self._convert_rule(dsl_rule, doc)
+        for dss_rule in dss_doc.rules:
+            rule = self._convert_rule(dss_rule, doc)
             if rule:
                 doc.addRule(rule)
         
         return doc
     
-    def _convert_axis(self, dsl_axis: DSLAxis):
-        """Convert DSL axis to DesignSpace axis (returns AxisDescriptor or DiscreteAxisDescriptor)"""
+    def _convert_axis(self, dss_axis: DSSAxis):
+        """Convert DSS axis to DesignSpace axis (returns AxisDescriptor or DiscreteAxisDescriptor)"""
         # Check if this is a discrete axis (like italic)
-        is_discrete = (dsl_axis.minimum == 0 and dsl_axis.maximum == 1 and 
-                      dsl_axis.name.lower() in ['italic', 'ital'])
+        is_discrete = (dss_axis.minimum == 0 and dss_axis.maximum == 1 and 
+                      dss_axis.name.lower() in ['italic', 'ital'])
         
         if is_discrete:
             # Create DiscreteAxisDescriptor for discrete axes
             axis = DiscreteAxisDescriptor()
-            axis.name = dsl_axis.name
-            axis.tag = dsl_axis.tag
+            axis.name = dss_axis.name
+            axis.tag = dss_axis.tag
             axis.labelNames = {
-                'en': dsl_axis.name.title()  # Weight, Italic, etc.
+                'en': dss_axis.name.title()  # Weight, Italic, etc.
             }
             axis.values = [0, 1]
-            axis.default = dsl_axis.default
+            axis.default = dss_axis.default
             
             # Add discrete labels
             axis.axisLabels = []
             
-            if not dsl_axis.mappings:
+            if not dss_axis.mappings:
                 # Default discrete labels for italic
                 upright_label = AxisLabelDescriptor(
                     name="Upright",
@@ -1600,30 +1600,30 @@ class DSLToDesignSpace:
                 axis.axisLabels = [upright_label, italic_label]
             else:
                 # Use custom mappings for discrete axis labels
-                for mapping in dsl_axis.mappings:
+                for mapping in dss_axis.mappings:
                     label_desc = AxisLabelDescriptor(
                         name=mapping.label,
                         userValue=mapping.user_value,
-                        elidable=(mapping.user_value == dsl_axis.default)
+                        elidable=(mapping.user_value == dss_axis.default)
                     )
                     axis.axisLabels.append(label_desc)
         else:
             # Create regular AxisDescriptor for continuous axes  
             axis = AxisDescriptor()
-            axis.name = dsl_axis.name
-            axis.tag = dsl_axis.tag
+            axis.name = dss_axis.name
+            axis.tag = dss_axis.tag
             axis.labelNames = {
-                'en': dsl_axis.name.title()  # Weight, Italic, etc.
+                'en': dss_axis.name.title()  # Weight, Italic, etc.
             }
-            axis.minimum = dsl_axis.minimum
-            axis.default = dsl_axis.default 
-            axis.maximum = dsl_axis.maximum
+            axis.minimum = dss_axis.minimum
+            axis.default = dss_axis.default 
+            axis.maximum = dss_axis.maximum
             
             # Continuous axis - add mappings and labels
             axis.map = []
             axis.axisLabels = []
             
-            for mapping in dsl_axis.mappings:
+            for mapping in dss_axis.mappings:
                 # Add mapping as tuple (older format)
                 axis.map.append((mapping.user_value, mapping.design_value))
                 
@@ -1631,32 +1631,42 @@ class DSLToDesignSpace:
                 label_desc = AxisLabelDescriptor(
                     name=mapping.label,
                     userValue=mapping.user_value,
-                    elidable=(mapping.user_value == dsl_axis.default)
+                    elidable=(mapping.user_value == dss_axis.default)
                 )
                 axis.axisLabels.append(label_desc)
         
         return axis
     
-    def _convert_master(self, dsl_master: DSLMaster, dsl_doc: DSLDocument) -> SourceDescriptor:
-        """Convert DSL master to DesignSpace source"""
+    def _convert_master(self, dss_master: DSSMaster, dss_doc: DSSDocument, source_index: int) -> SourceDescriptor:
+        """Convert DSS master to DesignSpace source"""
         source = SourceDescriptor()
         
-        # If path is specified in DSL document, prepend it to filename
-        if dsl_doc.path:
+        # If path is specified in DSS document, prepend it to filename
+        if dss_doc.path:
             # Ensure path uses forward slashes for consistency
-            path = dsl_doc.path.replace('\\', '/')
+            path = dss_doc.path.replace('\\', '/')
             if not path.endswith('/'):
                 path += '/'
-            source.filename = path + dsl_master.filename
+            source.filename = path + dss_master.filename
         else:
-            source.filename = dsl_master.filename
+            source.filename = dss_master.filename
             
-        source.familyName = dsl_doc.family
-        source.styleName = dsl_master.name
-        source.location = dsl_master.location.copy()
+        # Assign automatic name
+        source.name = f"source.{source_index}"
+        
+        # Try to read familyName and styleName from UFO file
+        ufo_info = self._read_ufo_info(source.filename)
+        if ufo_info:
+            source.familyName = ufo_info.get('familyName', dss_doc.family)
+            source.styleName = ufo_info.get('styleName', dss_master.name)
+        else:
+            source.familyName = dss_doc.family
+            source.styleName = dss_master.name
+            
+        source.location = dss_master.location.copy()
         
         # Set copy flags
-        if dsl_master.is_base:
+        if dss_master.is_base:
             source.copyLib = True
             source.copyInfo = True
             source.copyGroups = True
@@ -1664,13 +1674,34 @@ class DSLToDesignSpace:
         
         return source
     
-    def _convert_instance(self, dsl_instance: DSLInstance, dsl_doc: DSLDocument) -> InstanceDescriptor:
-        """Convert DSL instance to DesignSpace instance"""
+    def _read_ufo_info(self, filename: str) -> Optional[dict]:
+        """Read familyName and styleName from UFO file"""
+        try:
+            # The filename already includes the full relative path from the base_path
+            # (e.g., "masters/KazimirText-Black.ufo")
+            ufo_path = Path(filename)
+            if self.base_path and not ufo_path.is_absolute():
+                ufo_path = self.base_path / filename
+            
+            if not ufo_path.exists() or not ufo_path.is_dir():
+                return None
+                
+            font = Font(str(ufo_path))
+            return {
+                'familyName': font.info.familyName,
+                'styleName': font.info.styleName
+            }
+        except Exception:
+            # If UFO reading fails, return None to fall back to defaults
+            return None
+    
+    def _convert_instance(self, dss_instance: DSSInstance, dss_doc: DSSDocument) -> InstanceDescriptor:
+        """Convert DSS instance to DesignSpace instance"""
         instance = InstanceDescriptor()
-        instance.familyName = dsl_instance.familyname or dsl_doc.family
-        instance.styleName = dsl_instance.stylename
-        instance.filename = dsl_instance.filename
-        instance.location = dsl_instance.location.copy()
+        instance.familyName = dss_instance.familyname or dss_doc.family
+        instance.styleName = dss_instance.stylename
+        instance.filename = dss_instance.filename
+        instance.location = dss_instance.location.copy()
         
         # Generate PostScript name
         ps_family = instance.familyName.replace(' ', '').replace('-', '')
@@ -1679,25 +1710,25 @@ class DSLToDesignSpace:
         
         return instance
     
-    def _convert_rule(self, dsl_rule: DSLRule, doc: DesignSpaceDocument) -> Optional[RuleDescriptor]:
-        """Convert DSL rule to DesignSpace rule"""
+    def _convert_rule(self, dss_rule: DSSRule, doc: DesignSpaceDocument) -> Optional[RuleDescriptor]:
+        """Convert DSS rule to DesignSpace rule"""
         rule = RuleDescriptor()
-        rule.name = dsl_rule.name
+        rule.name = dss_rule.name
         
         # Handle wildcard patterns
-        if dsl_rule.pattern and dsl_rule.to_pattern:
+        if dss_rule.pattern and dss_rule.to_pattern:
             # Expand wildcard patterns to concrete substitutions
-            substitutions = self._expand_wildcard_pattern(dsl_rule, doc)
+            substitutions = self._expand_wildcard_pattern(dss_rule, doc)
             # Sort substitutions by source glyph name for consistent output
             rule.subs = sorted(substitutions, key=lambda x: x[0])
         else:
             # Use existing substitutions, also sorted
-            rule.subs = sorted(dsl_rule.substitutions, key=lambda x: x[0])
+            rule.subs = sorted(dss_rule.substitutions, key=lambda x: x[0])
         
         # Add conditions using modern conditionSets format
-        if dsl_rule.conditions:
+        if dss_rule.conditions:
             rule.conditionSets = [[]]  # Create one condition set
-            for condition in dsl_rule.conditions:
+            for condition in dss_rule.conditions:
                 cond_dict = {
                     'name': condition['axis'],
                     'minimum': condition['minimum'],
@@ -1707,15 +1738,15 @@ class DSLToDesignSpace:
         
         return rule
     
-    def _expand_wildcard_pattern(self, dsl_rule: DSLRule, doc: DesignSpaceDocument) -> List[Tuple[str, str]]:
+    def _expand_wildcard_pattern(self, dss_rule: DSSRule, doc: DesignSpaceDocument) -> List[Tuple[str, str]]:
         """Expand wildcard patterns to concrete glyph substitutions"""
         # Extract all glyph names from UFO files for validation
         all_glyphs = UFOGlyphExtractor.get_all_glyphs_from_sources(doc, self.base_path)
         
-        if not dsl_rule.pattern or not dsl_rule.to_pattern:
+        if not dss_rule.pattern or not dss_rule.to_pattern:
             # Validate regular substitutions (non-wildcard)
             validated_substitutions = []
-            for from_glyph, to_glyph in dsl_rule.substitutions:
+            for from_glyph, to_glyph in dss_rule.substitutions:
                 if to_glyph in all_glyphs:
                     validated_substitutions.append((from_glyph, to_glyph))
                 else:
@@ -1724,15 +1755,15 @@ class DSLToDesignSpace:
         
         # For wildcard patterns, all_glyphs is already extracted above
         
-        # Parse patterns from dsl_rule.pattern
-        patterns = dsl_rule.pattern.split()
+        # Parse patterns from dss_rule.pattern
+        patterns = dss_rule.pattern.split()
         
         # Find matching glyphs
         matching_glyphs = PatternMatcher.find_matching_glyphs(patterns, all_glyphs)
         
         # Generate substitutions
         substitutions = []
-        to_suffix = dsl_rule.to_pattern
+        to_suffix = dss_rule.to_pattern
         
         for glyph in matching_glyphs:
             if to_suffix.startswith('.'):

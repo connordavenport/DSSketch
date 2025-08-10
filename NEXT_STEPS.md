@@ -35,12 +35,12 @@
 **Решение:**
 
 ```python
-def validate_ufo_files(dsl_doc: DSLDocument, base_path: Path) -> ValidationReport:
+def validate_ufo_files(dss_doc: DSSDocument, base_path: Path) -> ValidationReport:
     """Validate UFO files existence and basic structure"""
     missing = []
     invalid = []
     
-    for master in dsl_doc.masters:
+    for master in dss_doc.masters:
         ufo_path = base_path / master.filename
         
         if not ufo_path.exists():
@@ -124,7 +124,7 @@ class ConversionReport:
     unused_glyphs: List[str]
     coverage_gaps: List[str]
     
-def generate_diagnostic_report(dsl_doc: DSLDocument) -> ConversionReport:
+def generate_diagnostic_report(dss_doc: DSSDocument) -> ConversionReport:
     """Generate comprehensive diagnostic report"""
     # Проверка покрытия дизайн-пространства
     # Поиск неиспользуемых мастеров  
@@ -132,7 +132,7 @@ def generate_diagnostic_report(dsl_doc: DSLDocument) -> ConversionReport:
     # Анализ качества интерполяции
 ```
 
-### 6. Advanced DSL Features (Приоритет: LOW)
+### 6. Advanced DSS Features (Приоритет: LOW)
 
 ```dssketch
 # Include system

@@ -40,7 +40,7 @@ pip install -r requirements.txt
 # Test with provided examples
 python dssketch_cli.py examples/KazimirText-Variable.designspace
 python dssketch_cli.py examples/Onweer_v2_RAIN.dssketch
-python dssketch_cli.py examples/wildcard-test.dsl
+python dssketch_cli.py examples/wildcard-test.dss
 ```
 
 ## Architecture & Core Concepts
@@ -52,10 +52,10 @@ python dssketch_cli.py examples/wildcard-test.dsl
 - `dssketch_cli.py` - Command-line interface (preferred for CLI usage)
 
 **Core Classes:**
-- `DSLParser` - Parses .dssketch format into structured data
-- `DSLWriter` - Generates .dssketch from structured data  
-- `DesignSpaceToDSL` - Converts .designspace → DSSketch
-- `DSLToDesignSpace` - Converts DSSketch → .designspace (supports discrete axes)
+- `DSSParser` - Parses .dssketch format into structured data
+- `DSSWriter` - Generates .dssketch from structured data  
+- `DesignSpaceToDSS` - Converts .designspace → DSSketch
+- `DSSToDesignSpace` - Converts DSSketch → .designspace (supports discrete axes)
 - `UFOValidator` - Validates UFO master files existence and structure
 - `Standards` - Built-in weight/width mappings (100=Thin, 400=Regular, etc.)
 
@@ -158,7 +158,7 @@ instances auto  # or explicit list
 
 ### File Extensions
 
-- `.dssketch` or `.dsl` - DSSketch format (compact)
+- `.dssketch` or `.dss` - DSSketch format (compact)
 - `.designspace` - DesignSpace XML (verbose)
 - Both directions preserve full functionality
 
