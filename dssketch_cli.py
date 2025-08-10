@@ -94,7 +94,20 @@ def main():
                     if not validation_report.has_errors and not validation_report.has_warnings:
                         print("✅ All UFO files validated successfully")
                 
-                converter = DSLToDesignSpace()
+                # Determine base path for UFO files (same logic as UFOValidator)
+                dssketch_dir = input_path.parent
+                
+                if dsl_doc.path:
+                    # Path specified in DSSketch file
+                    if Path(dsl_doc.path).is_absolute():
+                        base_path = Path(dsl_doc.path)
+                    else:
+                        base_path = dssketch_dir / dsl_doc.path
+                else:
+                    # Default: same directory as .dssketch file
+                    base_path = dssketch_dir
+                
+                converter = DSLToDesignSpace(base_path)
                 ds_doc = converter.convert(dsl_doc)
                 
                 output_path = args.output or input_path.with_suffix('.designspace')
@@ -111,7 +124,11 @@ def main():
                 converter = DesignSpaceToDSL()
                 dsl_doc = converter.convert_file(str(input_path))
                 
-                writer = DSLWriter(optimize=True)  # Always optimize
+                # Load DesignSpace document for glyph validation
+                from fontTools.designspaceLib import DesignSpaceDocument
+                ds_doc = DesignSpaceDocument.fromfile(str(input_path))
+                
+                writer = DSLWriter(optimize=True, ds_doc=ds_doc, base_path=str(input_path.parent))  # Always optimize
                 dsl_content = writer.write(dsl_doc)
                 
                 output_path = args.output or input_path.with_suffix('.dssketch')

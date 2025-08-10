@@ -35,6 +35,9 @@ from fontTools.designspaceLib import (
     AxisLabelDescriptor,
 )
 
+# For UFO file reading
+from defcon import Font
+
 
 # ============================================================================
 # Data Classes
@@ -194,6 +197,51 @@ class UFOValidator:
             return False
         
         return True
+
+
+class UFOGlyphExtractor:
+    """Extract glyph names from UFO files for wildcard pattern matching"""
+    
+    @staticmethod
+    def get_glyph_names_from_ufo(ufo_path: Path) -> Set[str]:
+        """Extract all glyph names from a UFO file"""
+        try:
+            font = Font(str(ufo_path))
+            return set(font.keys())
+        except Exception as e:
+            print(f"Warning: Could not read glyphs from {ufo_path}: {e}")
+            return set()
+    
+    @staticmethod
+    def get_all_glyphs_from_sources(doc: DesignSpaceDocument, base_path: Optional[Path] = None) -> Set[str]:
+        """Extract all unique glyph names from all DesignSpace sources"""
+        all_glyphs = set()
+        
+        for source in doc.sources:
+            if not source.filename:
+                continue
+                
+            # Determine the full path to the UFO file
+            source_path = Path(source.filename)
+            
+            if source_path.is_absolute():
+                ufo_path = source_path
+            elif base_path:
+                # If source filename already includes a relative path (like "masters/file.ufo"),
+                # and base_path also points to masters, we need to avoid duplication
+                if source_path.parts[0] == base_path.name:
+                    # Remove the first part and use base_path's parent
+                    relative_parts = source_path.parts[1:]
+                    ufo_path = base_path / Path(*relative_parts)
+                else:
+                    ufo_path = base_path / source.filename
+            else:
+                ufo_path = source_path
+            
+            if ufo_path.exists():
+                glyph_names = UFOGlyphExtractor.get_glyph_names_from_ufo(ufo_path)
+                all_glyphs.update(glyph_names)
+        return all_glyphs
 
 
 # ============================================================================
@@ -718,8 +766,10 @@ class DSLWriter:
         'weight': 'wght'
     }
     
-    def __init__(self, optimize: bool = True):
+    def __init__(self, optimize: bool = True, ds_doc: Optional[DesignSpaceDocument] = None, base_path: Optional[str] = None):
         self.optimize = optimize
+        self.ds_doc = ds_doc
+        self.base_path = base_path
     
     def write(self, dsl_doc: DSLDocument) -> str:
         """Generate DSL string from document"""
@@ -880,35 +930,60 @@ class DSLWriter:
                     cond_parts.append(f"{axis} <= {max_val}")
                     
             if cond_parts:
-                condition_str = f" @ {' && '.join(cond_parts)}"
+                condition_str = f"({' && '.join(cond_parts)})"
         
         # Try to detect patterns for multiple substitutions
         if len(rule.substitutions) > 1:
-            pattern_info = self._detect_substitution_pattern(rule.substitutions)
+            # Extract glyph list from UFO files if DesignSpace document is available
+            available_glyphs = None
+            if self.ds_doc and self.base_path:
+                try:
+                    available_glyphs = UFOGlyphExtractor.get_all_glyphs_from_sources(self.ds_doc, self.base_path)
+                except Exception:
+                    # If glyph extraction fails, continue without validation
+                    pass
+            
+            pattern_info = self._detect_substitution_pattern(rule.substitutions, available_glyphs)
             
             if pattern_info:
-                # Use compact wildcard notation
+                # Use compact wildcard notation with new parentheses syntax
                 from_pattern, to_pattern = pattern_info
-                lines.append(f"    {from_pattern} > {to_pattern}{condition_str}")
+                rule_name = self._format_rule_name(rule.name)
+                lines.append(f"    {from_pattern} > {to_pattern} {condition_str}{rule_name}")
             else:
-                # Fallback to individual lines with comment
-                lines.append(f"    # {rule.name}")
-                for from_glyph, to_glyph in rule.substitutions:
-                    lines.append(f"    {from_glyph} > {to_glyph}{condition_str}")
+                # Fallback to individual lines
+                for i, (from_glyph, to_glyph) in enumerate(rule.substitutions):
+                    if i == 0:
+                        # Add name to first substitution line
+                        rule_name = self._format_rule_name(rule.name)
+                        lines.append(f"    {from_glyph} > {to_glyph} {condition_str}{rule_name}")
+                    else:
+                        lines.append(f"    {from_glyph} > {to_glyph} {condition_str}")
         else:
             # Single substitution
-            for from_glyph, to_glyph in rule.substitutions:
-                lines.append(f"    {from_glyph} > {to_glyph}{condition_str}")
+            from_glyph, to_glyph = rule.substitutions[0]
+            rule_name = self._format_rule_name(rule.name)
+            lines.append(f"    {from_glyph} > {to_glyph} {condition_str}{rule_name}")
         
         return lines
     
-    def _detect_substitution_pattern(self, substitutions: List[Tuple[str, str]]) -> Optional[Tuple[str, str]]:
+    def _format_rule_name(self, rule_name: str) -> str:
+        """Format rule name for output - omit auto-generated names like rule1, rule2"""
+        if not rule_name or rule_name.startswith('rule') and rule_name[4:].isdigit():
+            return ""  # Omit auto-generated names
+        return f' "{rule_name}"'
+    
+    def _detect_substitution_pattern(self, substitutions: List[Tuple[str, str]], available_glyphs: Optional[Set[str]] = None) -> Optional[Tuple[str, str]]:
         """Try to detect a pattern in substitutions for compact notation
         
         Returns (from_pattern, to_pattern) or None
         Examples:
-        - [('dollar', 'dollar.rvrn'), ('cent', 'cent.rvrn')] -> ('dollar* cent*', '.rvrn')
+        - [('dollar', 'dollar.rvrn'), ('cent', 'cent.rvrn')] -> ('dollar* cent*', '.rvrn') if safe
         - [('dollar.sc', 'dollar.sc.rvrn')] -> None (single substitution)
+        
+        Args:
+            substitutions: List of (from_glyph, to_glyph) tuples
+            available_glyphs: Complete set of glyphs in font for validation (optional)
         """
         if len(substitutions) < 2:
             return None
@@ -960,7 +1035,22 @@ class DSLWriter:
             
             if patterns:
                 from_pattern = " ".join(patterns)
-                return (from_pattern, common_suffix)
+                
+                # Validate that wildcard pattern doesn't over-match if we have glyph list
+                if available_glyphs and any('*' in p for p in patterns):
+                    expanded_glyphs = PatternMatcher.find_matching_glyphs(patterns, available_glyphs)
+                    original_glyphs = set(from_glyphs)
+                    
+                    # Only use wildcard if it matches exactly the original glyphs
+                    if expanded_glyphs == original_glyphs:
+                        return (from_pattern, common_suffix)
+                    else:
+                        # Fall back to explicit listing to ensure exact matching
+                        explicit_pattern = " ".join(from_glyphs)
+                        return (explicit_pattern, common_suffix)
+                else:
+                    # No validation possible or no wildcards - use as-is
+                    return (from_pattern, common_suffix)
         
         return None
     
@@ -995,6 +1085,7 @@ class DSLParser:
         self.current_section = None
         self.current_axis = None
         self.discrete_labels = self._load_discrete_labels()
+        # Note: Rule names now handled via @name syntax instead of comments
     
     def _load_discrete_labels(self) -> Dict[str, Dict[int, List[str]]]:
         """Load discrete axis labels from YAML file"""
@@ -1026,9 +1117,21 @@ class DSLParser:
         lines = content.split('\n')
         
         for line_no, line in enumerate(lines, 1):
-            # Remove comments
+            original_line = line.strip()
+            
+            # Handle comments before removing them
             if '#' in line:
+                comment_part = line[line.index('#'):]
                 line = line[:line.index('#')]
+                
+                # If line is only a comment, process it separately
+                if not line.strip():
+                    try:
+                        self._parse_line(comment_part.strip())
+                    except Exception as e:
+                        raise ValueError(f"Error parsing line {line_no}: {original_line}\n{e}")
+                    continue
+                    
             line = line.strip()
             
             if not line:
@@ -1037,12 +1140,20 @@ class DSLParser:
             try:
                 self._parse_line(line)
             except Exception as e:
-                raise ValueError(f"Error parsing line {line_no}: {line}\n{e}")
+                raise ValueError(f"Error parsing line {line_no}: {original_line}\n{e}")
         
         return self.document
     
     def _parse_line(self, line: str):
         """Parse a single line based on context"""
+        
+        # Handle comments - store them for potential rule names
+        if line.startswith('#'):
+            # Extract comment text, removing the # and whitespace
+            comment_text = line[1:].strip()
+            if self.current_section == 'rules':
+                self.current_rule_comment = comment_text
+            return
         
         # Main sections
         if line.startswith('family '):
@@ -1291,112 +1402,102 @@ class DSLParser:
             # Parse explicit instance (similar to master parsing)
             pass
     
+    def _parse_condition_string(self, condition_str: str) -> List[dict]:
+        """Parse condition string like 'weight >= 480' or 'weight >= 600 && width >= 110'"""
+        conditions = []
+        if not condition_str:
+            return conditions
+        
+        # Split by && for multiple conditions
+        cond_parts = [part.strip() for part in condition_str.split('&&')]
+        
+        for cond_part in cond_parts:
+            # Try range condition first: "400 <= weight <= 700"
+            range_match = re.search(r'([\d.]+)\s*<=\s*(\w+)\s*<=\s*([\d.]+)', cond_part)
+            if range_match:
+                min_val = float(range_match.group(1))
+                axis = range_match.group(2)
+                max_val = float(range_match.group(3))
+                conditions.append({
+                    'axis': axis,
+                    'minimum': min_val,
+                    'maximum': max_val
+                })
+                continue
+            
+            # Standard conditions: "weight >= 480", "weight <= 400", "weight == 500"
+            std_match = re.search(r'(\w+)\s*(>=|<=|==)\s*([\d.]+)', cond_part)
+            if std_match:
+                axis = std_match.group(1)
+                operator = std_match.group(2)
+                value = float(std_match.group(3))
+                
+                if operator == '>=':
+                    conditions.append({
+                        'axis': axis,
+                        'minimum': value,
+                        'maximum': 1000  # Default high maximum
+                    })
+                elif operator == '<=':
+                    conditions.append({
+                        'axis': axis,
+                        'minimum': 0,  # Default low minimum
+                        'maximum': value
+                    })
+                elif operator == '==':
+                    conditions.append({
+                        'axis': axis,
+                        'minimum': value,
+                        'maximum': value
+                    })
+        
+        return conditions
+
     def _parse_rule_line(self, line: str):
-        """Parse rule definition line"""
+        """Parse rule definition line with parentheses syntax: pattern > target (condition) "name" """
         if '>' in line:
-            parts = line.split('@')
-            substitution = parts[0].strip()
-            condition_str = parts[1].strip() if len(parts) > 1 else ""
+            # Parse parentheses syntax: pattern > target (condition) "name"
+            paren_match = re.match(r'^(.+?)\s*>\s*(.+?)\s*\(([^)]+)\)(?:\s*"([^"]+)")?', line)
             
-            sub_parts = substitution.split('>')
-            from_part = sub_parts[0].strip()
-            to_part = sub_parts[1].strip()
-            
-            # Parse conditions (same as before)
-            conditions = []
-            if condition_str:
-                # Split by && for multiple conditions
-                cond_parts = [part.strip() for part in condition_str.split('&&')]
+            if paren_match:
+                from_part = paren_match.group(1).strip()
+                to_part = paren_match.group(2).strip()
+                condition_str = paren_match.group(3).strip()
+                rule_name = paren_match.group(4) if paren_match.group(4) else None
                 
-                for cond_part in cond_parts:
-                    # Try range condition first: "400 <= weight <= 700"
-                    range_match = re.search(r'([\d.]+)\s*<=\s*(\w+)\s*<=\s*([\d.]+)', cond_part)
-                    if range_match:
-                        min_val, axis_name, max_val = range_match.groups()
-                        conditions.append({
-                            'axis': axis_name,
-                            'minimum': float(min_val),
-                            'maximum': float(max_val)
-                        })
-                    else:
-                        # Try simple condition: "weight >= 480"
-                        cond_match = re.search(r'(\w+)\s*(>=|<=|==|>|<)\s*([\d.]+)', cond_part)
-                        if cond_match:
-                            axis_name, op, value = cond_match.groups()
-                            value = float(value)
-                            
-                            if op in ['>=', '>']:
-                                conditions.append({
-                                    'axis': axis_name,
-                                    'minimum': value,
-                                    'maximum': 1000  # Large number
-                                })
-                            elif op in ['<=', '<']:
-                                conditions.append({
-                                    'axis': axis_name,
-                                    'minimum': 0,
-                                    'maximum': value
-                                })
-                            elif op == '==':
-                                conditions.append({
-                                    'axis': axis_name,
-                                    'minimum': value,
-                                    'maximum': value
-                                })
-            
-            # Check if this is a wildcard pattern rule
-            if self._is_wildcard_rule(from_part, to_part):
-                # Handle wildcard patterns: "dollar* cent* > .rvrn"
-                self._parse_wildcard_rule(from_part, to_part, conditions)
-            else:
-                # Handle single substitution
-                from_glyph = from_part
-                to_glyph = to_part
+                # Parse conditions
+                conditions = self._parse_condition_string(condition_str)
                 
-                # Check if we already have a rule with these conditions
-                existing_rule = None
-                for rule in self.document.rules:
-                    if rule.conditions == conditions and conditions:  # Same conditions and not empty
-                        existing_rule = rule
-                        break
+                # Create rule with auto-generated name if needed
+                if not rule_name:
+                    rule_name = f"rule{len(self.document.rules) + 1}"
                 
-                if existing_rule:
-                    # Add substitution to existing rule
-                    existing_rule.substitutions.append((from_glyph, to_glyph))
-                else:
-                    # Create new rule
-                    rule_name = f"switching {from_glyph}" if conditions else f"substitution {from_glyph}"
+                # Create DSLRule
+                if ' ' in from_part and ('*' in from_part or len(from_part.split()) > 1):
+                    # Wildcard or multi-glyph pattern
                     rule = DSLRule(
                         name=rule_name,
-                        substitutions=[(from_glyph, to_glyph)],
+                        substitutions=[],  # Will be populated when converting to DesignSpace
+                        conditions=conditions,
+                        pattern=from_part,
+                        to_pattern=to_part
+                    )
+                else:
+                    # Single substitution
+                    rule = DSLRule(
+                        name=rule_name,
+                        substitutions=[(from_part, from_part + to_part if to_part.startswith('.') else to_part)],
                         conditions=conditions
                     )
-                    self.document.rules.append(rule)
+                
+                self.document.rules.append(rule)
+                return
+            else:
+                # Invalid rule syntax
+                print(f"⚠️  Warning: Invalid rule syntax: {line}")
+                print("Expected format: pattern > target (condition) \"name\"")
+                return
     
-    def _is_wildcard_rule(self, from_part: str, to_part: str) -> bool:
-        """Check if this is a wildcard pattern rule"""
-        return ('*' in from_part or 
-                to_part.startswith('.') or
-                ' ' in from_part)  # Multiple patterns like "dollar* cent*"
-    
-    def _parse_wildcard_rule(self, from_part: str, to_part: str, conditions: List[Dict]):
-        """Parse wildcard rule like 'dollar* cent* > .rvrn'"""
-        # Extract all patterns from from_part
-        patterns = from_part.split()
-        
-        # Create rule with pattern info
-        rule_name = f"wildcard {patterns[0].replace('*', '')}" if patterns else "wildcard rule"
-        rule = DSLRule(
-            name=rule_name,
-            substitutions=[],  # Will be populated when converting to DesignSpace
-            conditions=conditions,
-            pattern=from_part  # Store the original pattern
-        )
-        
-        # Store the transformation pattern
-        rule.to_pattern = to_part
-        
-        self.document.rules.append(rule)
     
     def _generate_auto_instances(self):
         """Generate instances automatically from axes mappings"""
@@ -1432,6 +1533,10 @@ class DSLParser:
 
 class DSLToDesignSpace:
     """Convert DSL to DesignSpace format"""
+    
+    def __init__(self, base_path: Optional[Path] = None):
+        """Initialize converter with optional base path for UFO files"""
+        self.base_path = base_path
     
     def convert(self, dsl_doc: DSLDocument) -> DesignSpaceDocument:
         """Convert DSL document to DesignSpace document"""
@@ -1583,10 +1688,11 @@ class DSLToDesignSpace:
         if dsl_rule.pattern and dsl_rule.to_pattern:
             # Expand wildcard patterns to concrete substitutions
             substitutions = self._expand_wildcard_pattern(dsl_rule, doc)
-            rule.subs = substitutions
+            # Sort substitutions by source glyph name for consistent output
+            rule.subs = sorted(substitutions, key=lambda x: x[0])
         else:
-            # Use existing substitutions
-            rule.subs = dsl_rule.substitutions
+            # Use existing substitutions, also sorted
+            rule.subs = sorted(dsl_rule.substitutions, key=lambda x: x[0])
         
         # Add conditions using modern conditionSets format
         if dsl_rule.conditions:
@@ -1603,21 +1709,20 @@ class DSLToDesignSpace:
     
     def _expand_wildcard_pattern(self, dsl_rule: DSLRule, doc: DesignSpaceDocument) -> List[Tuple[str, str]]:
         """Expand wildcard patterns to concrete glyph substitutions"""
-        if not dsl_rule.pattern or not dsl_rule.to_pattern:
-            return dsl_rule.substitutions
+        # Extract all glyph names from UFO files for validation
+        all_glyphs = UFOGlyphExtractor.get_all_glyphs_from_sources(doc, self.base_path)
         
-        # Extract all glyph names from DesignSpace sources
-        all_glyphs = set()
-        for source in doc.sources:
-            # In a real implementation, we'd load the UFO and get all glyph names
-            # For now, we'll use a simulated approach based on common patterns
-            
-            # Extract base glyph names from common patterns
-            base_names = ['dollar', 'cent', 'euro', 'yen', 'sterling', 
-                         'dollar.sc', 'cent.sc', 'dollar.old', 'cent.old',
-                         'dollar.ton', 'cent.ton', 'dollar.tln', 'cent.tln',
-                         'a', 'e', 'i', 'o', 'u', 'ampersand', 'at', 'percent']
-            all_glyphs.update(base_names)
+        if not dsl_rule.pattern or not dsl_rule.to_pattern:
+            # Validate regular substitutions (non-wildcard)
+            validated_substitutions = []
+            for from_glyph, to_glyph in dsl_rule.substitutions:
+                if to_glyph in all_glyphs:
+                    validated_substitutions.append((from_glyph, to_glyph))
+                else:
+                    print(f"⚠️  Warning: Skipping substitution {from_glyph} -> {to_glyph} - target glyph '{to_glyph}' not found in UFO files")
+            return validated_substitutions
+        
+        # For wildcard patterns, all_glyphs is already extracted above
         
         # Parse patterns from dsl_rule.pattern
         patterns = dsl_rule.pattern.split()
@@ -1632,12 +1737,21 @@ class DSLToDesignSpace:
         for glyph in matching_glyphs:
             if to_suffix.startswith('.'):
                 # Append suffix: dollar -> dollar.rvrn
+                # But skip if glyph already has this suffix to avoid .rvrn.rvrn
+                if glyph.endswith(to_suffix):
+                    continue
                 target = glyph + to_suffix
             else:
                 # Replace with target: might support other patterns in future
                 target = to_suffix
             
-            substitutions.append((glyph, target))
+            # Validate that target glyph exists in the font
+            if target in all_glyphs:
+                substitutions.append((glyph, target))
+            else:
+                # Skip invalid substitutions and warn about missing target glyph
+                print(f"⚠️  Warning: Skipping substitution {glyph} -> {target} - target glyph '{target}' not found in UFO files")
+                pass
         
         return substitutions
 

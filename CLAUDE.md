@@ -105,8 +105,8 @@ masters
     # italic/Bold [900]
     
 rules
-    dollar > dollar.rvrn @ weight >= 480
-    cent* > .rvrn @ weight >= 480  # wildcard patterns
+    dollar > dollar.rvrn (weight >= 480) "dollar alternates"
+    cent* > .rvrn (weight >= 480) "cent patterns"  # wildcard patterns
 
 instances auto  # or explicit list
 ```
@@ -119,10 +119,10 @@ instances auto  # or explicit list
 - Target patterns: `.rvrn` suffix
 
 **Rule Conditions:**
-- Simple: `@ weight >= 480`
-- Compound: `@ weight >= 600 && width >= 110`
-- Exact: `@ weight == 500`
-- Range: `@ 80 <= width <= 120`
+- Simple: `(weight >= 480)`
+- Compound: `(weight >= 600 && width >= 110)`
+- Exact: `(weight == 500)`
+- Range: `(80 <= width <= 120)`
 
 **Optimization:**
 - Auto-compresses multiple similar rules into wildcard patterns
