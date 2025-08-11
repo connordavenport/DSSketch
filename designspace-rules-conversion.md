@@ -10,7 +10,7 @@ DesignSpace rules control glyph substitutions based on axis conditions (weight, 
 
 ### 1. Rule Structure Analysis
 
-The converter processes DesignSpace `<rule>` elements from `dssketch.py:717` in the `_convert_rule()` method:
+The converter processes DesignSpace `<rule>` elements from `src/dssketch/converters/designspace_to_dss.py:203` in the `_convert_rule()` method:
 
 ```python
 def _convert_rule(self, rule: RuleDescriptor, ds_doc: DesignSpaceDocument) -> Optional[DSSRule]:
@@ -90,7 +90,7 @@ rules
 - **Error-free:** Clean syntax without symbol confusion
 - **Consistent:** Uniform spacing and formatting
 
-### 5. Condition Formatting (`_format_rule()` at line 905)
+### 5. Condition Formatting (`_format_rule()` at `src/dssketch/writers/dss_writer.py:170`)
 
 The converter generates different condition syntax based on min/max values:
 
@@ -262,19 +262,19 @@ DSSketch rules are typically 60-80% more compact than DesignSpace XML:
 ### Key Classes and Methods
 
 **Core Conversion:**
-- **`DesignSpaceToDSS._convert_rule()`** (line 717): Main DesignSpace → DSSketch conversion
-- **`DSSToDesignSpace._convert_rule()`** (line 1709): Main DSSketch → DesignSpace conversion
-- **`DSSRule`** (line 93): Data structure for rules
+- **`DesignSpaceToDSS._convert_rule()`** (`src/dssketch/converters/designspace_to_dss.py:203`): Main DesignSpace → DSSketch conversion
+- **`DSSToDesignSpace._convert_rule()`** (`src/dssketch/converters/dss_to_designspace.py:219`): Main DSSketch → DesignSpace conversion
+- **`DSSRule`** (`src/dssketch/core/models.py`): Data structure for rules
 
-**Parsing (New & Legacy):**
-- **`DSSParser._parse_rule_line()`** (line 1450): Parses both new parentheses and legacy @ syntax
-- **`DSSParser._parse_condition_string()`** (line 1399): Unified condition parsing for both syntaxes
-- **`DSSToDesignSpace._expand_wildcard_pattern()`** (line 1748): Expands wildcards with target validation
+**Parsing:**
+- **`DSSParser._parse_rule_line()`** (`src/dssketch/parsers/dss_parser.py:402`): Parses parentheses syntax
+- **`DSSParser._parse_condition_string()`** (`src/dssketch/parsers/dss_parser.py:351`): Condition parsing
+- **`DSSToDesignSpace._expand_wildcard_pattern()`** (`src/dssketch/converters/dss_to_designspace.py:247`): Expands wildcards with target validation
 
 **Output Generation:**
-- **`DSSWriter._format_rule()`** (line 905): Generates new parentheses syntax by default
-- **`DSSWriter._format_rule_name()`** (line 970): Handles auto-generated name omission
-- **`DSSWriter._detect_substitution_pattern()`** (line 976): Pattern optimization with validation
+- **`DSSWriter._format_rule()`** (`src/dssketch/writers/dss_writer.py:170`): Generates parentheses syntax
+- **`DSSWriter._format_rule_name()`** (`src/dssketch/writers/dss_writer.py:235`): Handles auto-generated name omission
+- **`PatternMatcher`** (`src/dssketch/utils/patterns.py`): Wildcard pattern matching
 
 ### Axis Name Mapping
 
@@ -314,56 +314,42 @@ dollar cent > .heavy  # ✅ CORRECT! Only specified glyphs
 
 **Key changes made:**
 
-1. **Enhanced `_detect_substitution_pattern()` method** (dssketch.py:959):
+**Solution Status:** ✅ **FIXED** - Enhanced validation prevents over-matching wildcards.
+
+**Implementation Details:**
+
+1. **Enhanced `_detect_substitution_pattern()` method** (`src/dssketch/writers/dss_writer.py:241`):
    ```python
-   def _detect_substitution_pattern(self, substitutions: List[Tuple[str, str]], available_glyphs: Optional[Set[str]] = None) -> Optional[Tuple[str, str]]:
-       # ... existing suffix detection logic ...
+   # Validate that wildcard pattern doesn't over-match if we have glyph list
+   if available_glyphs and any('*' in p for p in patterns):
+       expanded_glyphs = PatternMatcher.find_matching_glyphs(patterns, available_glyphs)
+       original_glyphs = set(from_glyphs)
        
-       if patterns and available_glyphs and any('*' in p for p in patterns):
-           # Validate that wildcard pattern doesn't over-match
-           expanded_glyphs = PatternMatcher.find_matching_glyphs(patterns, available_glyphs)
-           original_glyphs = set(from_glyphs)
-           
-           # Only use wildcard if it matches exactly the original glyphs
-           if expanded_glyphs == original_glyphs:
-               return (from_pattern, common_suffix)
-           else:
-               # Fall back to explicit listing to ensure exact matching
-               explicit_pattern = " ".join(from_glyphs)
-               return (explicit_pattern, common_suffix)
-   ```
-
-2. **Updated DSSWriter constructor** to accept DesignSpace document and base path for glyph extraction:
-   ```python
-   def __init__(self, optimize: bool = True, ds_doc: Optional[DesignSpaceDocument] = None, base_path: Optional[str] = None)
-   ```
-
-3. **Enhanced `_format_rule()` method** to extract glyphs from UFO files when available:
-   ```python
-   # Extract glyph list from UFO files if DesignSpace document is available
-   available_glyphs = None
-   if self.ds_doc and self.base_path:
-       available_glyphs = UFOGlyphExtractor.get_all_glyphs_from_sources(self.ds_doc, self.base_path)
-   ```
-
-4. **Updated CLI** (dssketch_cli.py:127-131) to pass DesignSpace document to writer:
-   ```python
-   ds_doc = DesignSpaceDocument.fromfile(str(input_path))
-   writer = DSSWriter(optimize=True, ds_doc=ds_doc, base_path=str(input_path.parent))
-   ```
-
-5. **Enhanced `_expand_wildcard_pattern()` method** (dssketch.py:1748) to validate target glyph existence:
-   ```python
-   # Validate regular substitutions (non-wildcard)
-   for from_glyph, to_glyph in dsl_rule.substitutions:
-       if to_glyph in all_glyphs:
-           validated_substitutions.append((from_glyph, to_glyph))
+       # Only use wildcard if it matches exactly the original glyphs
+       if expanded_glyphs == original_glyphs:
+           return (from_pattern, common_suffix)
        else:
-           print(f"⚠️  Warning: Skipping substitution {from_glyph} -> {to_glyph} - target glyph '{to_glyph}' not found in UFO files")
-   
-   # Also validates wildcard-generated targets
-   if target in all_glyphs:
-       substitutions.append((glyph, target))
+           # Fall back to explicit listing to ensure exact matching
+           explicit_pattern = " ".join(from_glyphs)
+           return (explicit_pattern, common_suffix)
+   ```
+
+2. **UFO Glyph Extraction** (`src/dssketch/core/validation.py`):
+   ```python
+   class UFOGlyphExtractor:
+       @staticmethod
+       def get_all_glyphs_from_sources(sources, base_path):
+           # Safely extracts glyph lists from UFO files
+   ```
+
+3. **Wildcard Expansion Validation** (`src/dssketch/converters/dss_to_designspace.py:247`):
+   ```python
+   def _expand_wildcard_pattern(self, dss_rule: DSSRule, doc: DesignSpaceDocument):
+       # Validates target glyphs exist before creating substitutions
+       if target in all_glyphs:
+           substitutions.append((glyph, target))
+       else:
+           print(f"⚠️  Warning: Skipping substitution {glyph} -> {target}")
    ```
 
 ### Benefits of the Fixes
@@ -406,26 +392,34 @@ A a > .alt @ weight >= 600  # Legacy syntax
 - If missing: `⚠️  Warning: Skipping substitution A -> A.alt - target glyph 'A.alt' not found in UFO files`
 - Only creates valid substitutions, preventing broken rules
 
-### Remaining Limitations
+### Current Capabilities & Limitations
 
-1. **Pattern detection** is currently limited to suffix-based transformations
-2. **UFO file dependency:** Requires UFO files to be present for validation
-3. **Complex conditions** beyond AND/OR operations are not supported
-4. **Rule ordering** is preserved but not optimized
+**✅ What works well:**
+1. **Smart wildcard validation** - Prevents over-matching with UFO-based validation
+2. **Comprehensive syntax support** - Supports range, compound, exact, and simple conditions
+3. **Target glyph validation** - Checks existence in UFO files before creating rules
+4. **Bidirectional conversion** - Full round-trip preservation of rule functionality
+5. **Pattern optimization** - Suffix-based transformations with safety validation
+
+**⚠️ Current limitations:**
+1. **Pattern detection** - Currently limited to suffix-based transformations (e.g., `.rvrn`, `.alt`)
+2. **UFO dependency for wildcards** - Wildcard validation requires UFO files to be present
+3. **Complex boolean logic** - Only supports AND (`&&`) operations, not OR or NOT
+4. **Rule ordering** - Preserved but not optimized for efficiency
 
 ## Testing
 
 Test the conversion with provided examples:
 
 ```bash
-# Convert DesignSpace to DSSketch (generates new parentheses syntax)
-python dssketch_cli.py examples/complex-rules.designspace
+# Convert DesignSpace to DSSketch (generates parentheses syntax)
+dssketch examples/KazimirText-Variable-original.designspace
 
-# Test new syntax parsing
-python dssketch_cli.py examples/KazimirText-Variable-test.dssketch
+# Test DSSketch to DesignSpace conversion with wildcard expansion  
+dssketch examples/KazimirText-Variable-original.dssketch
 
-# Convert back to verify round-trip preservation  
-python dssketch_cli.py examples/complex-rules.dss
+# Test complex rules with various condition types
+dssketch examples/test-rules-complex.dssketch
 ```
 
 **Example New Syntax Output:**

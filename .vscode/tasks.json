@@ -182,6 +182,165 @@
             },
             "problemMatcher": [],
             "detail": "Show DSSketch CLI help"
+        },
+        {
+            "label": "Run All Tests",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/bin/python",
+            "args": ["-m", "pytest", "tests/", "-v"],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}/src"
+                }
+            },
+            "problemMatcher": [],
+            "detail": "Run all pytest tests with verbose output"
+        },
+        {
+            "label": "Run Tests with Coverage",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/bin/python",
+            "args": [
+                "-m", "pytest", 
+                "tests/", 
+                "-v", 
+                "--cov=dssketch", 
+                "--cov-report=html", 
+                "--cov-report=term-missing"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}/src"
+                }
+            },
+            "detail": "Run tests with coverage report"
+        },
+        {
+            "label": "Run Current Test File",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/bin/python",
+            "args": ["-m", "pytest", "${file}", "-v", "-s"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}/src"
+                }
+            },
+            "detail": "Run currently open test file"
+        },
+        {
+            "label": "Test DSSketch Fixtures",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/bin/python",
+            "args": ["tests/fixtures/test_fixtures.py"],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}/src"
+                }
+            },
+            "detail": "Test comprehensive fixtures and wildcard rules"
+        },
+        {
+            "label": "Lint Code (Ruff)",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/bin/ruff",
+            "args": ["check", "src/", "tests/"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "Lint code with Ruff"
+        },
+        {
+            "label": "Format Code (Black)",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/bin/black",
+            "args": ["src/", "tests/"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "Format code with Black"
+        },
+        {
+            "label": "Type Check (MyPy)",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/bin/mypy",
+            "args": ["src/dssketch"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "Type check with MyPy"
+        },
+        {
+            "label": "Install Dev Dependencies",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv/bin/pip",
+            "args": ["install", "-e", ".[dev]"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "detail": "Install package in development mode"
         }
     ],
     "inputs": [

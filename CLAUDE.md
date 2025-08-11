@@ -17,12 +17,20 @@ The core idea of DSSketch is to provide a **human-friendly, simple, and intuitiv
 python dssketch_cli.py font.designspace
 python dssketch_cli.py font.dssketch
 
-# Import as package (after pip install -e .)
+# After pip install -e . you can use CLI commands directly:
+dssketch font.designspace       # Main converter
+dssketch font.dssketch -o output.designspace
+
+# CLI options:
+dssketch font.dssketch --no-validation        # Skip UFO validation (not recommended)
+dssketch font.dssketch --allow-missing-ufos   # Allow missing UFO files
+
+# Or use Python directly:
+python dssketch_cli.py input.designspace -o output.dssketch
+
+# Import as package:
 from dssketch import DSSParser, DSSWriter
 from dssketch.converters import DesignSpaceToDSS, DSSToDesignSpace
-
-# With output file
-python dssketch_cli.py input.designspace -o output.dssketch
 ```
 
 ### Development setup
@@ -39,6 +47,25 @@ pip install -r requirements.txt
 python dssketch_cli.py examples/KazimirText-Variable.designspace
 python dssketch_cli.py examples/Onweer_v2_RAIN.dssketch
 python dssketch_cli.py examples/wildcard-test.dss
+```
+
+### Data file management
+```bash
+# Install package in development mode first
+pip install -e .
+
+# Show data files locations and status  
+dssketch-data info
+
+# Copy default file for editing
+dssketch-data copy unified-mappings.yaml
+
+# Open user data directory in file manager  
+dssketch-data edit
+
+# Reset files to defaults
+dssketch-data reset --file unified-mappings.yaml
+dssketch-data reset --all
 ```
 
 ## Architecture & Core Concepts
@@ -72,7 +99,9 @@ python dssketch_cli.py examples/wildcard-test.dss
 - `src/dssketch/utils/patterns.py`:
   - `PatternMatcher` - Wildcard pattern matching for glyphs
 - `src/dssketch/utils/discrete.py`:
-  - `DiscreteAxisLabels` - Manages discrete axis labels
+  - `DiscreteAxisHandler` - Manages discrete axis detection and labels
+- `src/dssketch/config.py`:
+  - `DataManager` - Handles user data file overrides and customization
 
 ### Critical Design Concepts
 
@@ -222,6 +251,7 @@ When modifying the converter:
 
 When adding features:
 1. Update both parser and writer components
-2. Test with `--optimize` and `--no-optimize` flags
+2. Test bidirectional conversion (DSSketch ↔ DesignSpace)
 3. Verify complex rules with compound conditions
 4. Check handling of both standard and custom axes
+5. Validate wildcard expansion with UFO files

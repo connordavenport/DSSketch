@@ -247,6 +247,11 @@ class DSSParser:
                       self.current_axis.default == 0 and
                       self.current_axis.maximum == 1)
 
+        # Check for @elidable flag
+        elidable = '@elidable' in line
+        if elidable:
+            line = line.replace('@elidable', '').strip()
+
         if '>' in line:
             # Traditional format: "300 Light > 295" or "0.0 Upright > 0.0"
             parts = line.split('>')
@@ -296,7 +301,8 @@ class DSSParser:
         mapping = DSSAxisMapping(
             user_value=user,
             design_value=design,
-            label=label
+            label=label,
+            elidable=elidable
         )
         self.current_axis.mappings.append(mapping)
 

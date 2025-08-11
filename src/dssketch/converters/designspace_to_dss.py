@@ -157,7 +157,8 @@ class DesignSpaceToDSS:
                 mapping = DSSAxisMapping(
                     user_value=user_val,
                     design_value=design_val,
-                    label=label.name
+                    label=label.name,
+                    elidable=getattr(label, 'elidable', False)
                 )
                 dss_axis.mappings.append(mapping)
 
@@ -175,9 +176,9 @@ class DesignSpaceToDSS:
         if masters_path and filename.startswith(masters_path):
             filename = filename[len(masters_path):].lstrip('/')
 
-        # Determine if this is a base master
-        is_base = bool(source.copyLib or source.copyInfo or
-                      source.copyGroups or source.copyFeatures)
+        # Determine if this is a base master by checking if coordinates match defaults
+        # Base master has coordinates matching default values in design space
+        is_base = self._is_default_master(source, ds_doc)
 
         return DSSMaster(
             name=name,
@@ -189,6 +190,52 @@ class DesignSpaceToDSS:
             copy_groups=source.copyGroups,
             copy_features=source.copyFeatures
         )
+    
+    def _is_default_master(self, source: SourceDescriptor, ds_doc: DesignSpaceDocument) -> bool:
+        """Check if a master is at the default location for all continuous axes.
+        For discrete axes, any value is acceptable - we need base masters for each discrete value."""
+        
+        for axis in ds_doc.axes:
+            axis_name = axis.name
+            
+            # Get master's coordinate in design space
+            master_coord = source.location.get(axis_name)
+            if master_coord is None:
+                return False
+            
+            # Skip discrete axes - they can have any value
+            # We need base masters for each discrete value (e.g., both Roman and Italic)
+            if hasattr(axis, 'values') and axis.values:
+                # Just check that the value is valid
+                if master_coord not in axis.values:
+                    return False
+                continue
+            
+            # For continuous axes, check if at default position
+            default_user = axis.default
+            
+            # Convert user space default to design space
+            default_design = default_user  # Default: no mapping
+            
+            # Check if axis has mappings
+            if hasattr(axis, 'map') and axis.map:
+                # Find the mapping for default user value
+                for mapping in axis.map:
+                    if hasattr(mapping, 'inputLocation'):
+                        user_val = mapping.inputLocation
+                        design_val = mapping.outputLocation
+                    else:
+                        user_val, design_val = mapping
+                    
+                    if user_val == default_user:
+                        default_design = design_val
+                        break
+            
+            # For continuous axes, compare with small tolerance for floating point
+            if abs(master_coord - default_design) > 0.001:
+                return False
+        
+        return True
 
     def _convert_instance(self, instance: InstanceDescriptor, ds_doc: DesignSpaceDocument) -> DSSInstance:
         """Convert DesignSpace instance to DSS instance"""

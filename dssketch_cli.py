@@ -60,7 +60,7 @@ def main():
             converter = DSSToDesignSpace(base_path)
             ds_doc = converter.convert(dss_doc)
 
-            output_path = args.output or input_path.with_suffix('.designspace')
+            output_path = Path(args.output) if args.output else input_path.with_suffix('.designspace')
             ds_doc.write(str(output_path))
             print(f"✅ Converted {input_path.name} -> {output_path.name}")
 
@@ -76,7 +76,7 @@ def main():
             writer = DSSWriter(optimize=True, ds_doc=ds_doc, base_path=str(input_path.parent))
             dss_content = writer.write(dss_doc)
 
-            output_path = args.output or input_path.with_suffix('.dssketch')
+            output_path = Path(args.output) if args.output else input_path.with_suffix('.dssketch')
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(dss_content)
             print(f"✅ Converted {input_path.name} -> {output_path.name}")

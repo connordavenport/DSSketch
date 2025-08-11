@@ -14,6 +14,7 @@ class DSSAxisMapping:
     user_value: float        # User space value (400)
     design_value: float      # Design space value (125)
     label: str              # Name (Regular)
+    elidable: bool = False  # Whether this label can be elided in font names
 
 
 @dataclass

@@ -4,10 +4,7 @@ Utilities for handling discrete axes
 This module provides centralized logic for discrete axis detection and processing.
 """
 
-from pathlib import Path
 from typing import Dict, List
-
-import yaml
 
 
 class DiscreteAxisHandler:
@@ -34,27 +31,36 @@ class DiscreteAxisHandler:
 
     @staticmethod
     def load_discrete_labels() -> Dict[str, Dict[int, List[str]]]:
-        """Load discrete axis labels from YAML file
+        """Load discrete axis labels from YAML file with user overrides
 
         Returns:
             Dictionary mapping axis tags to value->labels mappings
         """
-        try:
-            data_dir = Path(__file__).parent.parent / "data"
-            with open(data_dir / "discrete-axis-labels.yaml", 'r') as f:
-                return yaml.safe_load(f) or {}
-        except (FileNotFoundError, Exception):
-            # Default fallback if file not found
-            return {
-                'ital': {
-                    0: ['Upright', 'Roman', 'Normal'],
-                    1: ['Italic']
-                },
-                'slnt': {
-                    0: ['Upright', 'Normal'],
-                    1: ['Slanted', 'Oblique']
-                }
+        from ..config import get_data_manager
+        
+        # Load from data manager (with user overrides)
+        labels = get_data_manager().load_data_file('discrete-axis-labels.yaml')
+        
+        if labels:
+            # Convert string keys to int for values
+            result = {}
+            for axis, values in labels.items():
+                result[axis] = {}
+                for value, names in values.items():
+                    result[axis][int(value)] = names if isinstance(names, list) else [names]
+            return result
+        
+        # Default fallback if file not found
+        return {
+            'ital': {
+                0: ['Upright', 'Roman', 'Normal'],
+                1: ['Italic']
+            },
+            'slnt': {
+                0: ['Upright', 'Normal'],
+                1: ['Slanted', 'Oblique']
             }
+        }
 
     @staticmethod
     def get_label_for_value(axis_tag: str, value: int) -> str:

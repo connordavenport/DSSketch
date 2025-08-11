@@ -57,7 +57,13 @@ class DSSWriter:
 
         # Masters section
         if dss_doc.masters:
-            lines.append("masters")
+            # Add masters keyword with axis order comment
+            if dss_doc.axes:
+                axis_names = [axis.name for axis in dss_doc.axes]
+                lines.append(f"masters # Axis order: [{', '.join(axis_names)}]")
+            else:
+                lines.append("masters")
+            
             for master in dss_doc.masters:
                 lines.append(self._format_master(master, dss_doc.axes))
             lines.append("")
@@ -109,7 +115,10 @@ class DSSWriter:
                 # Check if this is a discrete axis with simplified format
                 if is_discrete and mapping.user_value == mapping.design_value:
                     # Simplified discrete format: just "Upright" or "Italic"
-                    lines.append(f"        {mapping.label}")
+                    label_line = f"        {mapping.label}"
+                    if mapping.elidable:
+                        label_line += " @elidable"
+                    lines.append(label_line)
                 else:
                     # Traditional format
                     # Check if we can use compact form (name only)
@@ -117,13 +126,17 @@ class DSSWriter:
                         std_user_val = Standards.get_user_value_for_name(mapping.label, axis.name)
                         if std_user_val == mapping.user_value and self.optimize:
                             # Compact form: just "Regular > 125"
-                            lines.append(f"        {mapping.label} > {mapping.design_value}")
+                            label_line = f"        {mapping.label} > {mapping.design_value}"
                         else:
                             # Full form: "400 Regular > 125"
-                            lines.append(f"        {mapping.user_value} {mapping.label} > {mapping.design_value}")
+                            label_line = f"        {mapping.user_value} {mapping.label} > {mapping.design_value}"
                     except Exception:
                         # Full form when standard lookup fails
-                        lines.append(f"        {mapping.user_value} {mapping.label} > {mapping.design_value}")
+                        label_line = f"        {mapping.user_value} {mapping.label} > {mapping.design_value}"
+                    
+                    if mapping.elidable:
+                        label_line += " @elidable"
+                    lines.append(label_line)
 
         return lines
 

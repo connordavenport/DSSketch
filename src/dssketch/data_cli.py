@@ -3,7 +3,11 @@
 
 import argparse
 import sys
+import subprocess
+import platform
 from pathlib import Path
+
+from .config import get_data_manager
 
 
 def main():
@@ -28,41 +32,84 @@ def main():
     # Command: edit
     edit_parser = subparsers.add_parser('edit', help='Open user data directory in file manager')
     
+    # Command: copy
+    copy_parser = subparsers.add_parser('copy', help='Copy package file to user directory for editing')
+    copy_parser.add_argument('file', help='File to copy (e.g., unified-mappings.yaml)')
+    
     args = parser.parse_args()
     
     if not args.command:
         parser.print_help()
         return 1
     
-    # For now, just show basic info until data manager is implemented
+    # Get data manager
+    dm = get_data_manager()
+    
     if args.command == 'info':
-        from . import __file__ as package_file
-        package_dir = Path(package_file).parent
-        data_dir = package_dir / 'data'
+        info = dm.get_data_info()
+        print(f"\n📦 Package data directory:\n   {info['package_data_dir']}")
+        print(f"\n📁 User data directory:\n   {info['user_data_dir']}")
         
-        print(f"\n📦 Package data directory:")
-        print(f"   {data_dir}")
-        
-        if data_dir.exists():
-            print(f"\n📁 Available data files:")
-            for file in sorted(data_dir.glob('*')):
-                if file.is_file():
-                    print(f"   • {file.name}")
+        if info['user_files']:
+            print(f"\n📄 User files (override defaults):")
+            for file in info['user_files']:
+                print(f"   • {file}")
         else:
-            print("   ⚠️  Data directory not found")
-    
+            print(f"\n📄 User files: None")
+        
+        if info['package_files']:
+            print(f"\n📄 Package files (defaults):")
+            for file in info['package_files']:
+                override = " (overridden)" if file in info['user_files'] else ""
+                print(f"   • {file}{override}")
+        
+        print("\n💡 Tip: User files override package defaults when present")
+        print("💡 Use 'dssketch-data copy <file>' to copy a default file for editing")
+        
+    elif args.command == 'reset':
+        if args.file:
+            dm.reset_to_defaults(args.file)
+        elif args.all:
+            dm.reset_to_defaults()
+        else:
+            print("Specify --file <filename> or --all")
+            return 1
+            
     elif args.command == 'path':
-        from . import __file__ as package_file
-        package_dir = Path(package_file).parent
-        data_dir = package_dir / 'data'
-        print(str(data_dir))
+        print(dm.user_data_dir)
+        
+    elif args.command == 'edit':
+        path = dm.user_data_dir
+        
+        # Ensure directory exists
+        path.mkdir(parents=True, exist_ok=True)
+        
+        # Open in file manager
+        try:
+            if platform.system() == 'Windows':
+                subprocess.run(['explorer', str(path)])
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.run(['open', str(path)])
+            else:  # Linux
+                subprocess.run(['xdg-open', str(path)])
+            print(f"📂 Opened: {path}")
+        except Exception as e:
+            print(f"❌ Could not open directory: {e}")
+            print(f"📁 Directory path: {path}")
+            return 1
     
-    else:
-        print(f"Command '{args.command}' not yet implemented")
-        return 1
+    elif args.command == 'copy':
+        if not args.file:
+            print("Please specify a file to copy")
+            return 1
+        
+        success = dm.copy_package_to_user(args.file)
+        if success:
+            print(f"💡 You can now edit: {dm.user_data_dir / args.file}")
+        return 0 if success else 1
     
     return 0
 
 
 if __name__ == '__main__':
-    exit(main())
+    sys.exit(main())
