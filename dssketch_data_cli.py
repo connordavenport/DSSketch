@@ -3,7 +3,6 @@
 
 import argparse
 import sys
-from pathlib import Path
 
 
 # После рефакторинга будет: from src.dssketch.config import get_data_manager
@@ -65,8 +64,8 @@ def main():
         print(dm.user_data_dir)
 
     elif args.command == "edit":
-        import subprocess
         import platform
+        import subprocess
 
         path = dm.user_data_dir
         if platform.system() == "Windows":

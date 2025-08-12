@@ -6,7 +6,7 @@ This module provides mappings between stylenames, OS/2 values, and user space co
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import yaml
 
@@ -35,7 +35,7 @@ class UnifiedMappings:
         # Try YAML if available
         if yaml_file.exists():
             try:
-                with open(yaml_file, 'r', encoding='utf-8') as f:
+                with open(yaml_file, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
             except Exception:
                 # YAML parsing failed, fall back to JSON
@@ -44,26 +44,23 @@ class UnifiedMappings:
         # Try JSON if YAML didn't work
         if data is None and json_file.exists():
             try:
-                with open(json_file, 'r', encoding='utf-8') as f:
+                with open(json_file, encoding="utf-8") as f:
                     data = json.load(f)
             except Exception:
                 pass
 
         if data:
             # Extract main mappings (weight, width)
-            cls.MAPPINGS = {
-                key: value for key, value in data.items()
-                if key not in ['metadata']
-            }
+            cls.MAPPINGS = {key: value for key, value in data.items() if key not in ["metadata"]}
 
             # Extract defaults from metadata
-            if 'metadata' in data and 'defaults' in data['metadata']:
-                cls.DEFAULTS = data['metadata']['defaults']
+            if "metadata" in data and "defaults" in data["metadata"]:
+                cls.DEFAULTS = data["metadata"]["defaults"]
             else:
                 # Fallback defaults
                 cls.DEFAULTS = {
                     "weight": {"os2": 400, "user_space": 400.0},
-                    "width": {"os2": 5, "user_space": 100.0}
+                    "width": {"os2": 5, "user_space": 100.0},
                 }
         else:
             # Fallback to minimal hardcoded data if no file found
@@ -74,17 +71,17 @@ class UnifiedMappings:
                     "Regular": {"os2": 400, "user_space": 400},
                     "Medium": {"os2": 500, "user_space": 500},
                     "Bold": {"os2": 700, "user_space": 700},
-                    "Black": {"os2": 900, "user_space": 900}
+                    "Black": {"os2": 900, "user_space": 900},
                 },
                 "width": {
                     "Condensed": {"os2": 3, "user_space": 75},
                     "Normal": {"os2": 5, "user_space": 100},
-                    "Extended": {"os2": 7, "user_space": 125}
-                }
+                    "Extended": {"os2": 7, "user_space": 125},
+                },
             }
             cls.DEFAULTS = {
                 "weight": {"os2": 400, "user_space": 400.0},
-                "width": {"os2": 5, "user_space": 100.0}
+                "width": {"os2": 5, "user_space": 100.0},
             }
 
     @classmethod
@@ -125,7 +122,9 @@ class UnifiedMappings:
                 return float(entry["os2"])  # Fallback: use os2 as user_space
 
         # Default fallback from metadata
-        return cls.DEFAULTS.get(axis_type, {}).get("user_space", 400.0 if axis_type == "weight" else 100.0)
+        return cls.DEFAULTS.get(axis_type, {}).get(
+            "user_space", 400.0 if axis_type == "weight" else 100.0
+        )
 
     @classmethod
     def get_os2_value(cls, name: str, axis_type: str) -> int:
@@ -198,4 +197,3 @@ class UnifiedMappings:
 
 # Backward compatibility alias
 Standards = UnifiedMappings
-

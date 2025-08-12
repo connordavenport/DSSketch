@@ -16,6 +16,7 @@ from ..core.models import DSSDocument
 @dataclass
 class ValidationReport:
     """Report of UFO file validation"""
+
     missing_files: List[str] = field(default_factory=list)
     invalid_ufos: List[str] = field(default_factory=list)
     path_errors: List[str] = field(default_factory=list)
@@ -23,7 +24,9 @@ class ValidationReport:
 
     @property
     def has_errors(self) -> bool:
-        return len(self.missing_files) > 0 or len(self.invalid_ufos) > 0 or len(self.path_errors) > 0
+        return (
+            len(self.missing_files) > 0 or len(self.invalid_ufos) > 0 or len(self.path_errors) > 0
+        )
 
     @property
     def has_warnings(self) -> bool:
@@ -73,7 +76,7 @@ class UFOValidator:
                 report.invalid_ufos.append(str(ufo_path))
 
             # Check if filename ends with .ufo
-            if not master.filename.endswith('.ufo'):
+            if not master.filename.endswith(".ufo"):
                 report.warnings.append(f"Master filename should end with .ufo: {master.filename}")
 
         return report
@@ -85,13 +88,13 @@ class UFOValidator:
             return False
 
         # Check for required UFO files
-        required_files = ['metainfo.plist', 'fontinfo.plist']
+        required_files = ["metainfo.plist", "fontinfo.plist"]
         for req_file in required_files:
             if not (ufo_path / req_file).exists():
                 return False
 
         # Check for glyphs directory or layer contents
-        if not (ufo_path / 'glyphs').exists() and not (ufo_path / 'glyphs.contents.plist').exists():
+        if not (ufo_path / "glyphs").exists() and not (ufo_path / "glyphs.contents.plist").exists():
             return False
 
         return True
@@ -122,7 +125,7 @@ class UFOGlyphExtractor:
 
         for source in sources:
             # Handle both DesignSpace sources and DSSMaster objects
-            filename = getattr(source, 'filename', None)
+            filename = getattr(source, "filename", None)
             if not filename:
                 continue
 
@@ -148,4 +151,3 @@ class UFOGlyphExtractor:
                 all_glyphs.update(glyph_names)
 
         return all_glyphs
-

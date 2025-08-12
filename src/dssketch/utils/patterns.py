@@ -19,20 +19,20 @@ class PatternMatcher:
         - *Heavy : ends with 'Heavy'
         - a.*alt : starts with 'a.', ends with 'alt'
         """
-        if '*' not in pattern:
+        if "*" not in pattern:
             return glyph_name == pattern
 
-        if pattern.endswith('*'):
+        if pattern.endswith("*"):
             # Prefix match: dollar*
             prefix = pattern[:-1]
             return glyph_name.startswith(prefix)
-        elif pattern.startswith('*'):
+        elif pattern.startswith("*"):
             # Suffix match: *Heavy
             suffix = pattern[1:]
             return glyph_name.endswith(suffix)
         else:
             # Middle wildcard: a.*alt
-            parts = pattern.split('*', 1)
+            parts = pattern.split("*", 1)
             prefix, suffix = parts[0], parts[1]
             return glyph_name.startswith(prefix) and glyph_name.endswith(suffix)
 
@@ -83,4 +83,3 @@ class PatternMatcher:
                 return f"*{common_suffix}"
 
         return None
-

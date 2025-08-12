@@ -31,7 +31,7 @@ class DesignSpaceToDSS:
         data_dir = Path(__file__).parent.parent / "data"
 
         try:
-            with open(data_dir / "font-resources-translations.json", 'r') as f:
+            with open(data_dir / "font-resources-translations.json") as f:
                 self.font_resources = json.load(f)
         except FileNotFoundError:
             pass
@@ -99,7 +99,7 @@ class DesignSpaceToDSS:
         # Find common directory
         directories = set()
         for path in master_paths:
-            if path.parent != Path('.'):
+            if path.parent != Path("."):
                 directories.add(path.parent)
 
         # If all masters are in root directory (no parent path)
@@ -109,7 +109,7 @@ class DesignSpaceToDSS:
         # If all masters are in the same directory
         if len(directories) == 1:
             common_dir = directories.pop()
-            return str(common_dir).replace('\\', '/')
+            return str(common_dir).replace("\\", "/")
 
         # Masters are in different directories - return None
         return None
@@ -117,15 +117,15 @@ class DesignSpaceToDSS:
     def _convert_axis(self, axis: AxisDescriptor) -> DSSAxis:
         """Convert DesignSpace axis to DSS axis"""
         # Handle discrete axes (like italic)
-        if hasattr(axis, 'values') and axis.values:
+        if hasattr(axis, "values") and axis.values:
             values = list(axis.values)
             minimum = min(values)
             maximum = max(values)
-            default = getattr(axis, 'default', minimum)
+            default = getattr(axis, "default", minimum)
         else:
-            minimum = getattr(axis, 'minimum', 0)
-            maximum = getattr(axis, 'maximum', 1000)
-            default = getattr(axis, 'default', minimum)
+            minimum = getattr(axis, "minimum", 0)
+            maximum = getattr(axis, "maximum", 1000)
+            default = getattr(axis, "default", minimum)
 
         dss_axis = DSSAxis(
             name=axis.name, tag=axis.tag, minimum=minimum, default=default, maximum=maximum
@@ -137,7 +137,7 @@ class DesignSpaceToDSS:
         # Collect mappings
         if axis.map:
             for mapping in axis.map:
-                if hasattr(mapping, 'inputLocation'):
+                if hasattr(mapping, "inputLocation"):
                     user_val = mapping.inputLocation
                     design_val = mapping.outputLocation
                 else:
@@ -154,7 +154,7 @@ class DesignSpaceToDSS:
                     user_value=user_val,
                     design_value=design_val,
                     label=label.name,
-                    elidable=getattr(label, 'elidable', False)
+                    elidable=getattr(label, "elidable", False),
                 )
                 dss_axis.mappings.append(mapping)
 
@@ -175,7 +175,7 @@ class DesignSpaceToDSS:
 
         # If we have a common masters path, strip it from the filename
         if masters_path and filename.startswith(masters_path):
-            filename = filename[len(masters_path):].lstrip('/')
+            filename = filename[len(masters_path) :].lstrip("/")
 
         # Determine if this is a base master by checking if coordinates match defaults
         # Base master has coordinates matching default values in design space
@@ -189,63 +189,65 @@ class DesignSpaceToDSS:
             copy_lib=source.copyLib,
             copy_info=source.copyInfo,
             copy_groups=source.copyGroups,
-            copy_features=source.copyFeatures
+            copy_features=source.copyFeatures,
         )
-    
+
     def _is_default_master(self, source: SourceDescriptor, ds_doc: DesignSpaceDocument) -> bool:
         """Check if a master is at the default location for all continuous axes.
         For discrete axes, any value is acceptable - we need base masters for each discrete value."""
-        
+
         for axis in ds_doc.axes:
             axis_name = axis.name
-            
+
             # Get master's coordinate in design space
             master_coord = source.location.get(axis_name)
             if master_coord is None:
                 return False
-            
+
             # Skip discrete axes - they can have any value
             # We need base masters for each discrete value (e.g., both Roman and Italic)
-            if hasattr(axis, 'values') and axis.values:
+            if hasattr(axis, "values") and axis.values:
                 # Just check that the value is valid
                 if master_coord not in axis.values:
                     return False
                 continue
-            
+
             # For continuous axes, check if at default position
             default_user = axis.default
-            
+
             # Convert user space default to design space
             default_design = default_user  # Default: no mapping
-            
+
             # Check if axis has mappings
-            if hasattr(axis, 'map') and axis.map:
+            if hasattr(axis, "map") and axis.map:
                 # Find the mapping for default user value
                 for mapping in axis.map:
-                    if hasattr(mapping, 'inputLocation'):
+                    if hasattr(mapping, "inputLocation"):
                         user_val = mapping.inputLocation
                         design_val = mapping.outputLocation
                     else:
                         user_val, design_val = mapping
-                    
+
                     if user_val == default_user:
                         default_design = design_val
                         break
-            
+
             # For continuous axes, compare with small tolerance for floating point
             if abs(master_coord - default_design) > 0.001:
                 return False
-        
+
         return True
 
-    def _convert_instance(self, instance: InstanceDescriptor, ds_doc: DesignSpaceDocument) -> DSSInstance:
+    def _convert_instance(
+        self, instance: InstanceDescriptor, ds_doc: DesignSpaceDocument
+    ) -> DSSInstance:
         """Convert DesignSpace instance to DSS instance"""
         return DSSInstance(
             name=instance.styleName or "",
             familyname=instance.familyName or "",
             stylename=instance.styleName or "",
             filename=instance.filename,
-            location=dict(instance.location)
+            location=dict(instance.location),
         )
 
     def _convert_rule(self, rule: RuleDescriptor, ds_doc: DesignSpaceDocument) -> Optional[DSSRule]:
@@ -258,25 +260,24 @@ class DesignSpaceToDSS:
             substitutions.append((sub[0], sub[1]))
 
         conditions = []
-        if hasattr(rule, 'conditionSets') and rule.conditionSets:
+        if hasattr(rule, "conditionSets") and rule.conditionSets:
             for condset in rule.conditionSets:
                 for condition in condset:
-                    conditions.append({
-                        'axis': condition['name'],
-                        'minimum': condition.get('minimum', 0),
-                        'maximum': condition.get('maximum', 1000)
-                    })
-        elif hasattr(rule, 'conditions'):
+                    conditions.append(
+                        {
+                            "axis": condition["name"],
+                            "minimum": condition.get("minimum", 0),
+                            "maximum": condition.get("maximum", 1000),
+                        }
+                    )
+        elif hasattr(rule, "conditions"):
             for condition in rule.conditions:
-                conditions.append({
-                    'axis': condition.name,
-                    'minimum': condition.minimum,
-                    'maximum': condition.maximum
-                })
+                conditions.append(
+                    {
+                        "axis": condition.name,
+                        "minimum": condition.minimum,
+                        "maximum": condition.maximum,
+                    }
+                )
 
-        return DSSRule(
-            name=rule.name or "rule",
-            substitutions=substitutions,
-            conditions=conditions
-        )
-
+        return DSSRule(name=rule.name or "rule", substitutions=substitutions, conditions=conditions)
