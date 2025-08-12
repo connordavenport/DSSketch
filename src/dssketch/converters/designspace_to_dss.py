@@ -128,11 +128,7 @@ class DesignSpaceToDSS:
             default = getattr(axis, 'default', minimum)
 
         dss_axis = DSSAxis(
-            name=axis.name,
-            tag=axis.tag,
-            minimum=minimum,
-            default=default,
-            maximum=maximum
+            name=axis.name, tag=axis.tag, minimum=minimum, default=default, maximum=maximum
         )
 
         # Process mappings and labels
@@ -167,7 +163,12 @@ class DesignSpaceToDSS:
 
         return dss_axis
 
-    def _convert_source(self, source: SourceDescriptor, ds_doc: DesignSpaceDocument, masters_path: Optional[str] = None) -> DSSMaster:
+    def _convert_source(
+        self,
+        source: SourceDescriptor,
+        ds_doc: DesignSpaceDocument,
+        masters_path: Optional[str] = None,
+    ) -> DSSMaster:
         """Convert DesignSpace source to DSS master"""
         filename = source.filename or ""
         name = Path(filename).stem
