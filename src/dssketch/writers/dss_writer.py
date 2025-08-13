@@ -24,14 +24,19 @@ class DSSWriter:
 
     # Registered axis names that can be omitted for brevity
     REGISTERED_AXES = {
-        'italic': 'ital',
-        'optical': 'opsz',
-        'slant': 'slnt',
-        'width': 'wdth',
-        'weight': 'wght'
+        "italic": "ital",
+        "optical": "opsz",
+        "slant": "slnt",
+        "width": "wdth",
+        "weight": "wght",
     }
 
-    def __init__(self, optimize: bool = True, ds_doc: Optional[DesignSpaceDocument] = None, base_path: Optional[str] = None):
+    def __init__(
+        self,
+        optimize: bool = True,
+        ds_doc: Optional[DesignSpaceDocument] = None,
+        base_path: Optional[str] = None,
+    ):
         self.optimize = optimize
         self.ds_doc = ds_doc
         self.base_path = base_path
@@ -63,7 +68,7 @@ class DSSWriter:
                 lines.append(f"masters # Axis order: [{', '.join(axis_names)}]")
             else:
                 lines.append("masters")
-            
+
             for master in dss_doc.masters:
                 lines.append(self._format_master(master, dss_doc.axes))
             lines.append("")
@@ -93,8 +98,12 @@ class DSSWriter:
         axis_name = self._get_axis_display_name(axis.name, axis.tag)
 
         # Axis header with range - detect discrete axes by values
-        is_discrete = (axis.minimum == 0 and axis.default == 0 and axis.maximum == 1 and
-                      axis.name.lower() in ['italic', 'ital'])
+        is_discrete = (
+            axis.minimum == 0
+            and axis.default == 0
+            and axis.maximum == 1
+            and axis.name.lower() in ["italic", "ital"]
+        )
 
         if is_discrete:
             # Standard discrete axis (like italic) - use 'discrete' keyword
@@ -105,7 +114,9 @@ class DSSWriter:
         else:
             # Continuous axis or non-standard discrete axis
             if axis_name:
-                lines.append(f"    {axis_name} {axis.tag} {axis.minimum}:{axis.default}:{axis.maximum}")
+                lines.append(
+                    f"    {axis_name} {axis.tag} {axis.minimum}:{axis.default}:{axis.maximum}"
+                )
             else:
                 lines.append(f"    {axis.tag} {axis.minimum}:{axis.default}:{axis.maximum}")
 
@@ -132,8 +143,10 @@ class DSSWriter:
                             label_line = f"        {mapping.user_value} {mapping.label} > {mapping.design_value}"
                     except Exception:
                         # Full form when standard lookup fails
-                        label_line = f"        {mapping.user_value} {mapping.label} > {mapping.design_value}"
-                    
+                        label_line = (
+                            f"        {mapping.user_value} {mapping.label} > {mapping.design_value}"
+                        )
+
                     if mapping.elidable:
                         label_line += " @elidable"
                     lines.append(label_line)
@@ -167,9 +180,9 @@ class DSSWriter:
             coords.append(str(int(value) if value.is_integer() else value))
 
         # Use filename if it contains path, otherwise use name
-        if '/' in master.filename:
+        if "/" in master.filename:
             # Remove .ufo extension for display
-            display_name = master.filename.replace('.ufo', '')
+            display_name = master.filename.replace(".ufo", "")
         else:
             display_name = master.name
 
@@ -189,9 +202,9 @@ class DSSWriter:
         if rule.conditions:
             cond_parts = []
             for cond in rule.conditions:
-                axis = cond['axis']
-                min_val = cond['minimum']
-                max_val = cond['maximum']
+                axis = cond["axis"]
+                min_val = cond["minimum"]
+                max_val = cond["maximum"]
 
                 if min_val == max_val:
                     cond_parts.append(f"{axis} == {min_val}")
@@ -216,7 +229,9 @@ class DSSWriter:
             available_glyphs = None
             if self.ds_doc and self.base_path:
                 try:
-                    available_glyphs = UFOGlyphExtractor.get_all_glyphs_from_sources(self.ds_doc, self.base_path)
+                    available_glyphs = UFOGlyphExtractor.get_all_glyphs_from_sources(
+                        self.ds_doc, self.base_path
+                    )
                 except Exception:
                     # If glyph extraction fails, continue without validation
                     pass
@@ -247,11 +262,13 @@ class DSSWriter:
 
     def _format_rule_name(self, rule_name: str) -> str:
         """Format rule name for output - omit auto-generated names like rule1, rule2"""
-        if not rule_name or rule_name.startswith('rule') and rule_name[4:].isdigit():
+        if not rule_name or rule_name.startswith("rule") and rule_name[4:].isdigit():
             return ""  # Omit auto-generated names
         return f' "{rule_name}"'
 
-    def _detect_substitution_pattern(self, substitutions: List[Tuple[str, str]], available_glyphs: Optional[Set[str]] = None) -> Optional[Tuple[str, str]]:
+    def _detect_substitution_pattern(
+        self, substitutions: List[Tuple[str, str]], available_glyphs: Optional[Set[str]] = None
+    ) -> Optional[Tuple[str, str]]:
         """Try to detect a pattern in substitutions for compact notation
 
         Returns (from_pattern, to_pattern) or None
@@ -272,8 +289,8 @@ class DSSWriter:
         # e.g., dollar -> dollar.rvrn, cent -> cent.rvrn
         common_suffix = None
         for from_glyph, to_glyph in substitutions:
-            if to_glyph.startswith(from_glyph + '.'):
-                suffix = to_glyph[len(from_glyph):]
+            if to_glyph.startswith(from_glyph + "."):
+                suffix = to_glyph[len(from_glyph) :]
                 if common_suffix is None:
                     common_suffix = suffix
                 elif common_suffix != suffix:
@@ -296,7 +313,9 @@ class DSSWriter:
                     # Find all glyphs with this prefix
                     matching = [g for g in from_glyphs if g.startswith(prefix)]
                     if len(matching) > 1:
-                        if prefix not in prefix_groups or len(matching) > len(prefix_groups[prefix]):
+                        if prefix not in prefix_groups or len(matching) > len(
+                            prefix_groups[prefix]
+                        ):
                             prefix_groups[prefix] = matching
 
             # Convert to wildcard patterns
@@ -315,8 +334,10 @@ class DSSWriter:
                 from_pattern = " ".join(patterns)
 
                 # Validate that wildcard pattern doesn't over-match if we have glyph list
-                if available_glyphs and any('*' in p for p in patterns):
-                    expanded_glyphs = PatternMatcher.find_matching_glyphs(patterns, available_glyphs)
+                if available_glyphs and any("*" in p for p in patterns):
+                    expanded_glyphs = PatternMatcher.find_matching_glyphs(
+                        patterns, available_glyphs
+                    )
                     original_glyphs = set(from_glyphs)
 
                     # Only use wildcard if it matches exactly the original glyphs
@@ -340,4 +361,3 @@ class DSSWriter:
             coords.append(str(int(value) if value.is_integer() else value))
 
         return f"    {instance.stylename} [{', '.join(coords)}]"
-

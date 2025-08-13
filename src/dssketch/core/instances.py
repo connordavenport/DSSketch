@@ -2,8 +2,7 @@ import itertools
 
 from fontTools.designspaceLib import DesignSpaceDocument, InstanceDescriptor
 
-# import importlib
-from icecream import ic
+# from icecream import ic
 
 # ruff: noqa: E402
 # import tdFontFamilyMapper

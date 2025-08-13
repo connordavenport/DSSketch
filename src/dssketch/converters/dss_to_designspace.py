@@ -27,6 +27,9 @@ from fontTools.designspaceLib import (
     SourceDescriptor,
 )
 
+# Import instances module
+from ..core.instances import createInstances
+
 # Import models from core
 from ..core.models import DSSAxis, DSSDocument, DSSInstance, DSSMaster, DSSRule
 
@@ -35,9 +38,6 @@ from ..core.validation import UFOGlyphExtractor
 
 # Import utility classes
 from ..utils.patterns import PatternMatcher
-
-# Import instances module
-from ..core.instances import createInstances
 
 
 class DSSToDesignSpace:
@@ -65,10 +65,7 @@ class DSSToDesignSpace:
         if dss_doc.instances_auto:
             # Use sophisticated instance generation from instances module
             enhanced_doc, _ = createInstances(
-                doc,
-                defaultFolder='instances',
-                skipFilter={},
-                filter={}
+                doc, defaultFolder="instances", skipFilter={}, filter={}
             )
             # Copy the generated instances back to our document
             doc.instances = enhanced_doc.instances
