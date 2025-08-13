@@ -60,3 +60,5 @@ tmp/
 TODO.local
 NOTES.local
 tests/*
+tests/fixtures/*
+*.ufo
