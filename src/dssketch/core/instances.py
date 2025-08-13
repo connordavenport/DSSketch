@@ -2,6 +2,11 @@ import itertools
 
 from fontTools.designspaceLib import DesignSpaceDocument, InstanceDescriptor
 
+# Import DSSDocument for type hints
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .models import DSSDocument
+
 # from icecream import ic
 
 # ruff: noqa: E402
@@ -139,6 +144,7 @@ def combineFilters(filter: dict):
 
 def createInstances(
     dssource: DesignSpaceDocument,
+    dss_doc: 'DSSDocument' = None,
     defaultFolder="instances",
     skipFilter: dict = {},
     filter: dict = {},
@@ -148,6 +154,7 @@ def createInstances(
 
     Args:
         dssource (DesignSpaceDocument): Source designspace document
+        dss_doc (DSSDocument): Original DSS document to get axes order from
         defaultFolder (str): Output folder for instances (default: 'instances')
         skipFilter (dict): Dictionary of style combinations to skip (default: None)
         filter (dict): Dictionary of style combinations to include (default: None) not used yet
@@ -160,7 +167,7 @@ def createInstances(
     ds = DesignSpaceDocument()
     copyDS(dssource, ds, copyInstances=False)
 
-    axisOrder = sortAxisOrder(ds)
+    axisOrder = sortAxisOrder(ds, dss_doc)
     elidableStyleNames = getElidabledNames(ds, axisOrder, ignoreAxis=["weight"])
 
     defaultSource = ds.findDefault()
@@ -232,29 +239,44 @@ def createInstances(
     return ds, report
 
 
-def sortAxisOrder(ds: DesignSpaceDocument):
+def sortAxisOrder(ds: DesignSpaceDocument, dss_doc: 'DSSDocument' = None):
     """
-    Sorts axes in designspace according to DEFAULT_AXIS_ORDER.
+    Sorts axes using order from DSS axes section or fallback to DEFAULT_AXIS_ORDER.
     Updates axisOrdering values in the designspace document.
 
     Args:
         ds (DesignSpaceDocument): Source designspace document
+        dss_doc (DSSDocument): Original DSS document to get axes order from
 
     Returns:
         list: Sorted list of axis names
     """
-    # TODO need think how to get the axis order from profile yaml file instead of DEFAULT_AXIS_ORDER
-    axisNames = [axis.name for axis in ds.axes]
-    orderAxis = []
-    for axisname in DEFAULT_AXIS_ORDER:
-        if axisname in axisNames:
-            orderAxis.append(axisname)
-    for axisname in axisNames:
-        if axisname not in orderAxis:
-            orderAxis.insert(0, axisname)
+    if dss_doc and dss_doc.axes:
+        # Use the exact order from DSS axes section
+        orderAxis = [axis.name for axis in dss_doc.axes]
+        
+        # Ensure all DS axes are included (safety check)
+        ds_axis_names = [axis.name for axis in ds.axes]
+        for axis_name in ds_axis_names:
+            if axis_name not in orderAxis:
+                orderAxis.append(axis_name)
+    else:
+        # Fallback to DEFAULT_AXIS_ORDER logic for backward compatibility
+        axisNames = [axis.name for axis in ds.axes]
+        orderAxis = []
+        for axisname in DEFAULT_AXIS_ORDER:
+            if axisname in axisNames:
+                orderAxis.append(axisname)
+        for axisname in axisNames:
+            if axisname not in orderAxis:
+                orderAxis.append(axisname)  # Add missing to end, not beginning
+    
+    # Update axisOrdering values
     for idx, axisname in enumerate(orderAxis):
         axis = ds.getAxis(axisname)
-        axis.axisOrdering = idx
+        if axis:
+            axis.axisOrdering = idx
+    
     return orderAxis
 
 

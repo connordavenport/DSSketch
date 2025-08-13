@@ -136,7 +136,7 @@ family FontName
 suffix VF  # optional
 path masters  # common directory for masters
 
-axes
+axes  # Order of axes controls instance generation sequence
     wght 100:400:900  # min:default:max
         Thin > 100    # label > design_value
         Regular > 400
@@ -158,7 +158,7 @@ rules
     A* > .alt (weight <= 500)  # all glyphs starting with A
     * > .rvrn (weight >= 600)  # all glyphs that have .rvrn variants
 
-instances auto  # or explicit list
+instances auto  # instances follow axes section order
 ```
 
 ### Key Features
@@ -222,10 +222,11 @@ Rules define glyph substitutions based on axis conditions. The syntax is:
 - Uses sophisticated `instances.py` module for generating all meaningful instance combinations
 - Creates instances from all axis mapping combinations automatically
 - Handles elidable style names (removes redundant parts like "Regular" from "Regular Italic" → "Italic")
-- Follows standard axis ordering: Optical → Contrast → Width → Weight → Italic → Slant
+- **Respects axes order from DSS document**: instances follow the sequence defined in axes section
 - Supports filtering and skipping unwanted combinations
 - Generates proper PostScript names and file paths
 - Integration: `dss_to_designspace.py:67` calls `createInstances()` when `instances_auto=True`
+- **Custom axis ordering**: Change axes order in DSS to control instance name generation
 
 ## Important Implementation Details
 
@@ -273,17 +274,38 @@ Rules define glyph substitutions based on axis conditions. The syntax is:
 
 **Algorithm:**
 1. Copy DesignSpace without instances
-2. Sort axes in standard order (Optical → Contrast → Width → Weight → Italic → Slant)
+2. **Sort axes using DSS document order** or fallback to DEFAULT_AXIS_ORDER
 3. Extract all axis label combinations using `itertools.product()`
 4. Apply skip filters for unwanted combinations
 5. Generate elidable names to clean up style names (e.g., "Regular Italic" → "Italic")
 6. Create instance descriptors with proper locations and names
 7. Return enhanced DesignSpace with all generated instances
 
+**Axis Order Priority:**
+1. **DSS axes section order** - Primary method for controlling instance generation
+2. `DEFAULT_AXIS_ORDER` - Fallback when no DSS document provided
+
 **Constants:**
-- `DEFAULT_AXIS_ORDER` - Standard axis ordering for consistent instance generation
+- `DEFAULT_AXIS_ORDER` - Fallback axis ordering (Optical → Contrast → Width → Weight → Italic → Slant)
 - `ELIDABLE_MAJOR_AXIS = "weight"` - Primary axis that should not be elidable
 - `DEFAULT_INSTANCE_FOLDER = "instances"` - Default output folder for generated instances
+
+**Examples:**
+```dssketch
+# Custom axis order: italic first, then weight, then width
+axes
+    ital discrete
+        Upright @elidable
+        Italic
+    wght 100:400:900
+        Light > 100
+        Regular > 400
+    wdth 60:100:200
+        Condensed > 60
+        Normal > 100
+
+# Result: instances like "Italic Light Condensed"
+```
 
 ### Data Files
 
