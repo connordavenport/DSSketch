@@ -5,18 +5,17 @@ This module handles writing DSSketch documents to DSS string format with optimiz
 """
 
 from typing import List, Optional, Set, Tuple
-from pathlib import Path
 
 # For DesignSpace document type hints
 from fontTools.designspaceLib import DesignSpaceDocument
 
-# Import models from core
-from ..core.models import DSSDocument, DSSAxis, DSSMaster, DSSInstance, DSSRule
-
 # Import utilities
 from ..core.mappings import Standards
-from ..utils.patterns import PatternMatcher
+
+# Import models from core
+from ..core.models import DSSAxis, DSSDocument, DSSInstance, DSSMaster, DSSRule
 from ..core.validation import UFOGlyphExtractor
+from ..utils.patterns import PatternMatcher
 
 
 class DSSWriter:
