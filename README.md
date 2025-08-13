@@ -105,6 +105,25 @@ Regular > 362  означает:
 - `DesignSpaceToDSS` - конвертер .designspace → DSS
 - `DSSToDesignSpace` - конвертер DSS → .designspace
 - `Standards` - встроенные маппинги весов и ширин
+- `instances` - модуль для управления инстансами шрифтов
+
+### Модуль instances.py
+
+Новый модуль `instances.py` предоставляет полный набор функций для работы с инстансами переменных шрифтов:
+
+**Основные функции:**
+- `createInstances()` - создание всех возможных инстансов из комбинаций осей
+- `sortAxisOrder()` - сортировка осей согласно стандартному порядку
+- `getElidabledNames()` - генерация вариаций стилевых названий с удаляемыми частями
+- `getInstancesMapping()` - извлечение маппинга значений осей
+- `createInstance()` - создание одного дескриптора инстанса
+- `copyDS()` - копирование DesignSpace документа с выбором компонентов
+- `removeInstances()` - удаление инстансов по фильтру
+
+**Константы:**
+- `ELIDABLE_MAJOR_AXIS = "weight"` - основная ось, которая не должна удаляться
+- `DEFAULT_AXIS_ORDER` - стандартный порядок осей: Optical, Contrast, Width, Weight, Italic, Slant
+- `DEFAULT_INSTANCE_FOLDER = "instances"` - папка по умолчанию для файлов инстансов
 
 ## Возможности DSSketch
 

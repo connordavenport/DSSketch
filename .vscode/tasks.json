@@ -71,49 +71,6 @@
             "detail": "Convert currently open file (auto-detects format and saves in same directory)"
         },
         {
-            "label": "DSSketch: Test with Examples",
-            "type": "shell",
-            "command": "${workspaceFolder}/.venv/bin/python",
-            "args": [
-                "dssketch_cli.py",
-                "examples/KazimirText-Variable.designspace"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": "test",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "problemMatcher": [],
-            "detail": "Quick test conversion with Kazimir example"
-        },
-        {
-            "label": "DSSketch: Round-trip Test",
-            "type": "shell",
-            "command": "bash",
-            "args": [
-                "-c",
-                "cd ${workspaceFolder} && echo 'Starting round-trip test...' && ${workspaceFolder}/.venv/bin/python dssketch_cli.py ${input:testFile} && echo 'Converting back...' && ${workspaceFolder}/.venv/bin/python dssketch_cli.py examples/*.dssketch | head -1 && echo '✅ Round-trip test completed'"
-            ],
-            "group": "test",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "problemMatcher": [],
-            "detail": "Test round-trip conversion (auto-detects formats)"
-        },
-        {
             "label": "DSSketch: Install Package (Dev)",
             "type": "shell",
             "command": "${workspaceFolder}/.venv/bin/pip",
@@ -184,152 +141,14 @@
             "detail": "Show DSSketch CLI help"
         },
         {
-            "label": "Run All Tests",
-            "type": "shell",
-            "command": "${workspaceFolder}/.venv/bin/python",
-            "args": ["-m", "pytest", "tests/", "-v"],
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PYTHONPATH": "${workspaceFolder}/src"
-                }
-            },
-            "problemMatcher": [],
-            "detail": "Run all pytest tests with verbose output"
-        },
-        {
-            "label": "Run Tests with Coverage",
-            "type": "shell",
-            "command": "${workspaceFolder}/.venv/bin/python",
-            "args": [
-                "-m", "pytest", 
-                "tests/", 
-                "-v", 
-                "--cov=dssketch", 
-                "--cov-report=html", 
-                "--cov-report=term-missing"
-            ],
-            "group": "test",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PYTHONPATH": "${workspaceFolder}/src"
-                }
-            },
-            "detail": "Run tests with coverage report"
-        },
-        {
-            "label": "Run Current Test File",
-            "type": "shell",
-            "command": "${workspaceFolder}/.venv/bin/python",
-            "args": ["-m", "pytest", "${file}", "-v", "-s"],
-            "group": "test",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PYTHONPATH": "${workspaceFolder}/src"
-                }
-            },
-            "detail": "Run currently open test file"
-        },
-        {
-            "label": "Test DSSketch Fixtures",
-            "type": "shell",
-            "command": "${workspaceFolder}/.venv/bin/python",
-            "args": ["tests/fixtures/test_fixtures.py"],
-            "group": "test",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PYTHONPATH": "${workspaceFolder}/src"
-                }
-            },
-            "detail": "Test comprehensive fixtures and wildcard rules"
-        },
-        {
-            "label": "Lint Code (Ruff)",
-            "type": "shell",
-            "command": "${workspaceFolder}/.venv/bin/ruff",
-            "args": ["check", "src/", "tests/"],
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "detail": "Lint code with Ruff"
-        },
-        {
-            "label": "Format Code (Black)",
-            "type": "shell",
-            "command": "${workspaceFolder}/.venv/bin/black",
-            "args": ["src/", "tests/"],
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "silent",
-                "focus": false,
-                "panel": "shared"
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "detail": "Format code with Black"
-        },
-        {
-            "label": "Type Check (MyPy)",
-            "type": "shell",
-            "command": "${workspaceFolder}/.venv/bin/mypy",
-            "args": ["src/dssketch"],
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "detail": "Type check with MyPy"
-        },
-        {
             "label": "Install Dev Dependencies",
             "type": "shell",
             "command": "${workspaceFolder}/.venv/bin/pip",
-            "args": ["install", "-e", ".[dev]"],
+            "args": [
+                "install",
+                "-e",
+                ".[dev]"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -348,27 +167,13 @@
             "id": "designSpaceFile",
             "description": "Select DesignSpace file",
             "type": "pickString",
-            "options": [
-                "examples/KazimirText-Variable.designspace",
-                "examples/KazimirText-Variable-original.designspace", 
-                "examples/KazimirText-Variable-test.designspace",
-                "examples/complex-rules.designspace",
-                "examples/Onweer_v2_RAIN.designspace"
-            ],
-            "default": "examples/KazimirText-Variable.designspace"
+            "options": []
         },
         {
             "id": "dssFile",
             "description": "Select DSS file",
             "type": "pickString",
-            "options": [
-                "examples/complex-rules.dssketch",
-                "examples/KazimirText-Variable-test.dssketch",
-                "examples/Onweer_v2_RAIN.dssketch",
-                "examples/wildcard-test.dss",
-                "output/test_output.dssketch"
-            ],
-            "default": "examples/complex-rules.dssketch"
+            "options": []
         },
         {
             "id": "inputFile",
@@ -386,12 +191,7 @@
             "id": "testFile",
             "description": "Select file for round-trip test",
             "type": "pickString",
-            "options": [
-                "examples/KazimirText-Variable.designspace",
-                "examples/complex-rules.designspace",
-                "examples/complex-rules.dssketch"
-            ],
-            "default": "examples/KazimirText-Variable.designspace"
+            "options": []
         }
     ]
 }

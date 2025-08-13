@@ -59,4 +59,4 @@ tmp/
 *.md.local
 TODO.local
 NOTES.local
-
+tests/*
