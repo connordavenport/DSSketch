@@ -54,6 +54,7 @@ htmlcov/
 *.dssketch.backup
 temp/
 tmp/
+output/
 
 # Build artifacts that should not be in package
 *.md.local
@@ -62,3 +63,4 @@ NOTES.local
 tests/*
 tests/fixtures/*
 *.ufo
+backup-before-cleanup.bundle

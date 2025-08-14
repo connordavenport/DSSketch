@@ -1,9 +1,10 @@
 import itertools
 
-from fontTools.designspaceLib import DesignSpaceDocument, InstanceDescriptor
-
 # Import DSSDocument for type hints
 from typing import TYPE_CHECKING
+
+from fontTools.designspaceLib import DesignSpaceDocument, InstanceDescriptor
+
 if TYPE_CHECKING:
     from .models import DSSDocument
 
@@ -144,7 +145,7 @@ def combineFilters(filter: dict):
 
 def createInstances(
     dssource: DesignSpaceDocument,
-    dss_doc: 'DSSDocument' = None,
+    dss_doc: "DSSDocument" = None,
     defaultFolder="instances",
     skipFilter: dict = {},
     filter: dict = {},
@@ -239,7 +240,7 @@ def createInstances(
     return ds, report
 
 
-def sortAxisOrder(ds: DesignSpaceDocument, dss_doc: 'DSSDocument' = None):
+def sortAxisOrder(ds: DesignSpaceDocument, dss_doc: "DSSDocument" = None):
     """
     Sorts axes using order from DSS axes section or fallback to DEFAULT_AXIS_ORDER.
     Updates axisOrdering values in the designspace document.
@@ -254,7 +255,7 @@ def sortAxisOrder(ds: DesignSpaceDocument, dss_doc: 'DSSDocument' = None):
     if dss_doc and dss_doc.axes:
         # Use the exact order from DSS axes section
         orderAxis = [axis.name for axis in dss_doc.axes]
-        
+
         # Ensure all DS axes are included (safety check)
         ds_axis_names = [axis.name for axis in ds.axes]
         for axis_name in ds_axis_names:
@@ -270,13 +271,13 @@ def sortAxisOrder(ds: DesignSpaceDocument, dss_doc: 'DSSDocument' = None):
         for axisname in axisNames:
             if axisname not in orderAxis:
                 orderAxis.append(axisname)  # Add missing to end, not beginning
-    
+
     # Update axisOrdering values
     for idx, axisname in enumerate(orderAxis):
         axis = ds.getAxis(axisname)
         if axis:
             axis.axisOrdering = idx
-    
+
     return orderAxis
 
 
