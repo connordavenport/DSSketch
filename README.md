@@ -54,9 +54,9 @@ family MyFont
 axes
     wght 100:400:900
         Light > 100
-        Regular > 400
+        Regular > 400 @elidable
         Bold > 900
-masters
+masters [wght]
     Light.ufo [100]
     Regular.ufo [400] @base
     Bold.ufo [900]
@@ -79,21 +79,23 @@ dss_string = dssketch.convert_designspace_to_dss_string(ds)
 ## Пример DSSketch формата
 
 ```dssketch
-family KazimirText
+family SuperFont
 
 axes
     wght 50:400:900
         Hairline > 0
         Thin > 68
         Light > 196
-        Regular > 362
+        Regular > 362 @elidable
         Medium > 477
         Bold > 732
         Black > 1000
 
-    ital binary
+    ital discrete
+        Upright @elidable
+        Italic
 
-masters
+masters [wght, ital]
     Hairline        [0, 0]
     Regular         [362, 0] @base
     Black           [1000, 0]
@@ -102,8 +104,8 @@ masters
     BlackItalic     [1000, 1]
 
 rules
-    dollar > dollar.rvrn @ weight >= 480
-    cent > cent.rvrn @ weight >= 480
+    dollar cent > .rvrn @ weight >= 480
+    * > .alt @ weight >= 600
 
 instances auto
 ```
@@ -140,9 +142,9 @@ Regular > 362  означает:
 
 В папке `examples/` находятся:
 
-- `KazimirText-Variable.designspace` → сложный пример с нелинейным маппингом
+- `SuperFont-Variable.designspace` → сложный пример с нелинейным маппингом
 - `Nagel_VF.designspace` → пример с наклоном (slant)
-- `kazimir-compact.dss` → компактный DSS формат
+- `SuperFont-compact.dss` → компактный DSS формат
 
 ## Архитектура
 
@@ -241,3 +243,4 @@ rules
 | .dssketch | 21 | 0.8 KB | ⭐⭐⭐⭐⭐ |
 
 **Экономия: 93% размера, 10x читаемость**
+# Test change for git hook
