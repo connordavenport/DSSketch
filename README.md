@@ -241,3 +241,4 @@ rules
 | .dssketch | 21 | 0.8 KB | ⭐⭐⭐⭐⭐ |
 
 **Экономия: 93% размера, 10x читаемость**
+# Test change for git hook
