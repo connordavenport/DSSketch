@@ -1,4 +1,4 @@
-name: Auto Version Increment (Patch)
+name: Auto Version Increment (Patch) - PAT Version
 
 on:
   push:
@@ -10,9 +10,6 @@ on:
       - 'docs/**'
       - '**/*.md'
 
-permissions:
-  contents: write
-  
 jobs:
   bump-patch:
     runs-on: ubuntu-latest
@@ -22,7 +19,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.VERSION_BUMP_PAT }}  # Personal Access Token
         fetch-depth: 0
 
     - name: Set up Python

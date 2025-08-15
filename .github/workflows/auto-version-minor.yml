@@ -5,6 +5,9 @@ on:
     types: [closed]
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   bump-minor:
     runs-on: ubuntu-latest
