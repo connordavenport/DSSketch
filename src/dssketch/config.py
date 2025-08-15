@@ -9,6 +9,8 @@ from typing import Any, Dict, Optional
 
 import yaml
 
+from .utils.logging import DSSketchLogger
+
 
 class DataManager:
     """Manages DSSketch data files with user override support"""
@@ -72,7 +74,7 @@ class DataManager:
                     except yaml.YAMLError:
                         return json.loads(content)
         except Exception as e:
-            print(f"⚠️  Error loading {filepath}: {e}")
+            DSSketchLogger.warning(f"Error loading {filepath}: {e}")
             return {}
 
     def save_user_data(self, filename: str, data: Dict[str, Any]) -> None:
@@ -85,9 +87,9 @@ class DataManager:
                     yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
                 else:
                     json.dump(data, f, indent=2, ensure_ascii=False)
-            print(f"✅ Saved to {filepath}")
+            DSSketchLogger.info(f"Saved to {filepath}")
         except Exception as e:
-            print(f"❌ Error saving {filepath}: {e}")
+            DSSketchLogger.error(f"Error saving {filepath}: {e}")
 
     def reset_to_defaults(self, filename: Optional[str] = None) -> None:
         """Reset user files to package defaults"""
@@ -96,9 +98,9 @@ class DataManager:
             user_file = self.user_data_dir / filename
             if user_file.exists():
                 user_file.unlink()
-                print(f"✅ Reset {filename} to defaults")
+                DSSketchLogger.info(f"Reset {filename} to defaults")
             else:
-                print(f"ℹ️  {filename} was already using defaults")
+                DSSketchLogger.info(f"{filename} was already using defaults")
         else:
             # Reset all files
             count = 0
@@ -108,9 +110,9 @@ class DataManager:
                     count += 1
 
             if count:
-                print(f"✅ Reset {count} file(s) to defaults")
+                DSSketchLogger.info(f"Reset {count} file(s) to defaults")
             else:
-                print("ℹ️  No user files to reset")
+                DSSketchLogger.info("No user files to reset")
 
     def get_data_info(self) -> Dict[str, Any]:
         """Get information about data files"""
@@ -136,19 +138,19 @@ class DataManager:
         user_file = self.user_data_dir / filename
 
         if not package_file.exists():
-            print(f"❌ Package file {filename} not found")
+            DSSketchLogger.error(f"Package file {filename} not found")
             return False
 
         if user_file.exists():
-            print(f"⚠️  User file {filename} already exists")
+            DSSketchLogger.warning(f"User file {filename} already exists")
             return False
 
         try:
             shutil.copy2(package_file, user_file)
-            print(f"✅ Copied {filename} to user directory")
+            DSSketchLogger.info(f"Copied {filename} to user directory")
             return True
         except Exception as e:
-            print(f"❌ Error copying {filename}: {e}")
+            DSSketchLogger.error(f"Error copying {filename}: {e}")
             return False
 
 

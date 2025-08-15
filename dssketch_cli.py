@@ -14,6 +14,7 @@ from src.dssketch import (
     DSSWriter,
     UFOValidator,
 )
+from src.dssketch.utils.logging import DSSketchLogger
 
 
 def main():
@@ -31,8 +32,11 @@ def main():
     input_path = Path(args.input)
 
     if not input_path.exists():
-        print(f"Error: Input file {input_path} does not exist")
+        DSSketchLogger.error(f"Input file {input_path} does not exist")
         return 1
+    
+    # Setup logging for this conversion
+    DSSketchLogger.setup_logger(str(input_path))
 
     try:
         # Auto-detect output format based on input extension
@@ -41,20 +45,21 @@ def main():
         elif input_path.suffix.lower() == '.designspace':
             output_format = 'dssketch'
         else:
-            print(f"Error: Unsupported input format {input_path.suffix}")
-            print("Supported formats: .dssketch, .dss, .designspace")
+            DSSketchLogger.error(f"Unsupported input format {input_path.suffix}")
+            DSSketchLogger.error("Supported formats: .dssketch, .dss, .designspace")
             return 1
 
         # Convert based on detected format
         if output_format == 'designspace':
             # Convert .dssketch/.dss to .designspace
+            DSSketchLogger.info("Starting DSSketch to DesignSpace conversion")
             parser = DSSParser()
             dss_doc = parser.parse_file(str(input_path))
 
             # Simple UFO validation with basic error handling
             validation_report = UFOValidator.validate_ufo_files(dss_doc, str(input_path))
             if validation_report.has_errors:
-                print("⚠️  Some UFO files may be missing or invalid, but continuing conversion...")
+                DSSketchLogger.warning("Some UFO files may be missing or invalid, but continuing conversion...")
 
             base_path = input_path.parent
             converter = DSSToDesignSpace(base_path)
@@ -62,10 +67,11 @@ def main():
 
             output_path = Path(args.output) if args.output else input_path.with_suffix('.designspace')
             ds_doc.write(str(output_path))
-            print(f"✅ Converted {input_path.name} -> {output_path.name}")
+            DSSketchLogger.success(f"Converted {input_path.name} -> {output_path.name}")
 
         elif output_format == 'dssketch':
             # Convert .designspace to .dssketch
+            DSSketchLogger.info("Starting DesignSpace to DSSketch conversion")
             converter = DesignSpaceToDSS()
             dss_doc = converter.convert_file(str(input_path))
 
@@ -79,14 +85,16 @@ def main():
             output_path = Path(args.output) if args.output else input_path.with_suffix('.dssketch')
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(dss_content)
-            print(f"✅ Converted {input_path.name} -> {output_path.name}")
+            DSSketchLogger.success(f"Converted {input_path.name} -> {output_path.name}")
 
     except Exception as e:
         import traceback
-        print(f"Error during conversion: {e}")
-        print("\nFull traceback:")
-        traceback.print_exc()
+        DSSketchLogger.error(f"Error during conversion: {e}")
+        DSSketchLogger.debug("Full traceback:")
+        DSSketchLogger.debug(traceback.format_exc())
         return 1
+    finally:
+        DSSketchLogger.cleanup()
 
     return 0
 

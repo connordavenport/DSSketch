@@ -13,6 +13,7 @@ from . import (
     DSSToDesignSpace,
     DSSWriter,
 )
+from .utils.logging import DSSketchLogger
 
 
 def main():
@@ -34,8 +35,11 @@ def main():
     input_path = Path(args.input)
 
     if not input_path.exists():
-        print(f"Error: Input file {input_path} does not exist")
+        DSSketchLogger.error(f"Input file {input_path} does not exist")
         return 1
+    
+    # Setup logging for this conversion
+    DSSketchLogger.setup_logger(str(input_path))
 
     try:
         # Auto-detect output format based on input extension
@@ -44,8 +48,8 @@ def main():
         elif input_path.suffix.lower() == ".designspace":
             output_format = "dssketch"
         else:
-            print(f"Error: Unsupported input format {input_path.suffix}")
-            print("Supported formats: .dssketch, .dss, .designspace")
+            DSSketchLogger.error(f"Unsupported input format {input_path.suffix}")
+            DSSketchLogger.error("Supported formats: .dssketch, .dss, .designspace")
             return 1
 
         # Determine output path
@@ -56,10 +60,13 @@ def main():
                 output_path = input_path.with_suffix(".designspace")
             else:
                 output_path = input_path.with_suffix(".dssketch")
+        
+        DSSketchLogger.info(f"Converting {input_path.name} to {output_path.name}")
 
         # Convert based on detected format
         if output_format == "designspace":
             # Convert .dssketch/.dss to .designspace
+            DSSketchLogger.info("Starting DSSketch to DesignSpace conversion")
             parser = DSSParser()
             dss_data = parser.parse_file(str(input_path))
 
@@ -69,6 +76,7 @@ def main():
 
         else:
             # Convert .designspace to .dssketch
+            DSSketchLogger.info("Starting DesignSpace to DSSketch conversion")
             converter = DesignSpaceToDSS()
             dss_data = converter.convert(
                 str(input_path),
@@ -79,12 +87,14 @@ def main():
             writer = DSSWriter()
             writer.write_file(str(output_path), dss_data)
 
-        print(f"Conversion completed: {input_path} → {output_path}")
+        DSSketchLogger.success(f"Conversion completed: {input_path} → {output_path}")
         return 0
 
     except Exception as e:
-        print(f"Error during conversion: {e}")
+        DSSketchLogger.error(f"Error during conversion: {e}")
         return 1
+    finally:
+        DSSketchLogger.cleanup()
 
 
 if __name__ == "__main__":

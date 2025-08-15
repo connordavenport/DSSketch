@@ -12,6 +12,7 @@ import yaml
 
 from ..core.mappings import Standards
 from ..core.models import DSSAxis, DSSAxisMapping, DSSDocument, DSSInstance, DSSMaster, DSSRule
+from ..utils.logging import DSSketchLogger
 
 
 class DSSParser:
@@ -491,8 +492,8 @@ class DSSParser:
                 return
             else:
                 # Invalid rule syntax
-                print(f"⚠️  Warning: Invalid rule syntax: {line}")
-                print('Expected format: pattern > target (condition) "name"')
+                DSSketchLogger.warning(f"Invalid rule syntax: {line}")
+                DSSketchLogger.warning('Expected format: pattern > target (condition) "name"')
                 return
 
     def _generate_auto_instances(self):

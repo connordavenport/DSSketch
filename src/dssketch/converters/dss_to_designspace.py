@@ -38,6 +38,7 @@ from ..core.validation import UFOGlyphExtractor
 
 # Import utility classes
 from ..utils.patterns import PatternMatcher
+from ..utils.logging import DSSketchLogger
 
 
 class DSSToDesignSpace:
@@ -243,7 +244,7 @@ class DSSToDesignSpace:
 
         # Skip empty rules (no valid substitutions)
         if not rule.subs:
-            print(f"⚠️  Warning: Skipping rule '{dss_rule.name}' - no valid substitutions found")
+            DSSketchLogger.warning(f"Skipping rule '{dss_rule.name}' - no valid substitutions found")
             return None
 
         # Add conditions using modern conditionSets format
@@ -292,7 +293,7 @@ class DSSToDesignSpace:
                         return axis.name
 
         # If no match found, return original (fallback)
-        print(f"⚠️  Warning: Could not find axis '{dss_axis_name}' in DesignSpace, using as-is")
+        DSSketchLogger.warning(f"Could not find axis '{dss_axis_name}' in DesignSpace, using as-is")
         return dss_axis_name
 
     def _expand_wildcard_pattern(
@@ -315,8 +316,8 @@ class DSSToDesignSpace:
                 if to_glyph in all_glyphs:
                     validated_substitutions.append((from_glyph, to_glyph))
                 else:
-                    print(
-                        f"⚠️  Warning: Skipping substitution {from_glyph} -> {to_glyph} - target glyph '{to_glyph}' not found in UFO files"
+                    DSSketchLogger.warning(
+                        f"Skipping substitution {from_glyph} -> {to_glyph} - target glyph '{to_glyph}' not found in UFO files"
                     )
             return validated_substitutions
 
@@ -348,8 +349,8 @@ class DSSToDesignSpace:
                 substitutions.append((glyph, target))
             else:
                 # Skip invalid substitutions and warn about missing target glyph
-                print(
-                    f"⚠️  Warning: Skipping substitution {glyph} -> {target} - target glyph '{target}' not found in UFO files"
+                DSSketchLogger.warning(
+                    f"Skipping substitution {glyph} -> {target} - target glyph '{target}' not found in UFO files"
                 )
                 pass
 

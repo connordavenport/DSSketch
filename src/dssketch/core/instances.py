@@ -8,6 +8,8 @@ from fontTools.designspaceLib import DesignSpaceDocument, InstanceDescriptor
 if TYPE_CHECKING:
     from .models import DSSDocument
 
+from ..utils.logging import DSSketchLogger
+
 # from icecream import ic
 
 # ruff: noqa: E402
@@ -80,7 +82,7 @@ def copyDS(
         destinationDesignspace.rules = sourceDesignspace.rules.copy()
 
 
-def getInstancesMapping(designSpaceDocument: DesignSpaceDocument, axisName="weight", logger=None):
+def getInstancesMapping(designSpaceDocument: DesignSpaceDocument, axisName="weight"):
     """
     Extracts the mapping of the axis values to the user values from the designspace document.
     """
@@ -88,17 +90,15 @@ def getInstancesMapping(designSpaceDocument: DesignSpaceDocument, axisName="weig
     if not axisDescriptor:
         axisNames = [axis.name for axis in designSpaceDocument.axes]
         axisDescriptor = designSpaceDocument.getAxis(axisNames[0])
-        if logger:
-            logger.warning(
-                f"Axis {axisName} not found in the designspace, using {axisNames[0]} instead"
-            )
+        DSSketchLogger.warning(
+            f"Axis {axisName} not found in the designspace, using {axisNames[0]} instead"
+        )
 
     axisMap = axisDescriptor.map
     if not axisMap:
-        if logger:
-            logger.warning(
-                f"there is no map, use the axis labels and their user values {axisDescriptor.axisLabels}"
-            )
+        DSSketchLogger.warning(
+            f"there is no map, use the axis labels and their user values {axisDescriptor.axisLabels}"
+        )
         axisMap = []
         for axisLabel in axisDescriptor.axisLabels:
             axisMap.append((axisLabel.userValue, axisLabel.userValue))
@@ -117,10 +117,9 @@ def getInstancesMapping(designSpaceDocument: DesignSpaceDocument, axisName="weig
                 axisLabelsList[labelName] = uservalue
                 break
         if not labelName:
-            if logger:
-                logger.warning(
-                    f"Label for {axisvalue} not found in the designspace. User value: {uservalue}"
-                )
+            DSSketchLogger.warning(
+                f"Label for {axisvalue} not found in the designspace. User value: {uservalue}"
+            )
 
         reverseMap[axisvalue] = uservalue
     # logger.warning(f'reverseMap: {reverseMap}')

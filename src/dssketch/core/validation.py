@@ -11,6 +11,7 @@ from typing import List, Set
 from defcon import Font
 
 from ..core.models import DSSDocument
+from ..utils.logging import DSSketchLogger
 
 
 @dataclass
@@ -110,7 +111,7 @@ class UFOGlyphExtractor:
             font = Font(str(ufo_path))
             return set(font.keys())
         except Exception as e:
-            print(f"Warning: Could not read glyphs from {ufo_path}: {e}")
+            DSSketchLogger.warning(f"Could not read glyphs from {ufo_path}: {e}")
             return set()
 
     @staticmethod

@@ -7,6 +7,7 @@ import subprocess
 import sys
 
 from .config import get_data_manager
+from .utils.logging import DSSketchLogger
 
 
 def main():
