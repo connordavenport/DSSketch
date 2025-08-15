@@ -1,0 +1,45 @@
+name: Auto Version Increment (Patch)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '.bumpversion.cfg'
+      - '.github/**'
+      - 'README.md'
+      - 'docs/**'
+      - '**/*.md'
+
+jobs:
+  bump-patch:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'Bump version:')"
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install bump2version
+      run: pip install bump2version
+
+    - name: Configure git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+    - name: Bump patch version
+      run: |
+        bump2version patch --verbose
+
+    - name: Push changes
+      run: |
+        git push
+        git push --tags
