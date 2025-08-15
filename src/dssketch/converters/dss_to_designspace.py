@@ -190,7 +190,7 @@ class DSSToDesignSpace:
         """Read familyName and styleName from UFO file"""
         try:
             # The filename already includes the full relative path from the base_path
-            # (e.g., "masters/KazimirText-Black.ufo")
+            # (e.g., "masters/SuperFont-Black.ufo")
             ufo_path = Path(filename)
             if self.base_path and not ufo_path.is_absolute():
                 ufo_path = self.base_path / filename

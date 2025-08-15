@@ -63,8 +63,8 @@ pip install -r requirements.txt
 ### Testing examples
 ```bash
 # Test with provided examples
-python dssketch_cli.py examples/KazimirText-Variable.designspace
-python dssketch_cli.py examples/Onweer_v2_RAIN.dssketch
+python dssketch_cli.py examples/SuperFont-Variable.designspace
+python dssketch_cli.py examples/MyFont_v2_VER1.dssketch
 python dssketch_cli.py examples/wildcard-test.dss
 ```
 
@@ -73,13 +73,13 @@ python dssketch_cli.py examples/wildcard-test.dss
 # Install package in development mode first
 pip install -e .
 
-# Show data files locations and status  
+# Show data files locations and status
 dssketch-data info
 
 # Copy default file for editing
 dssketch-data copy unified-mappings.yaml
 
-# Open user data directory in file manager  
+# Open user data directory in file manager
 dssketch-data edit
 
 # Reset files to defaults
@@ -100,7 +100,7 @@ from fontTools.designspaceLib import DesignSpaceDocument
 # Convert DesignSpace object to DSSketch file
 dssketch.convert_to_dss(designspace: DesignSpaceDocument, dss_path: str, optimize: bool = True) -> str
 
-# Convert DSSketch file to DesignSpace object  
+# Convert DSSketch file to DesignSpace object
 dssketch.convert_to_designspace(dss_path: str) -> DesignSpaceDocument
 
 # Convert DSSketch string to DesignSpace object
@@ -125,7 +125,7 @@ ds.read("MyFont.designspace")
 dssketch.convert_to_dss(ds, "MyFont.dssketch")
 
 # Later, load back as DesignSpace object
-ds_loaded = dssketch.convert_to_designspace("MyFont.dssketch") 
+ds_loaded = dssketch.convert_to_designspace("MyFont.dssketch")
 
 # Use the loaded DesignSpace
 print(f"Family: {ds_loaded.default.familyName}")
@@ -164,22 +164,22 @@ from fontTools.designspaceLib import DesignSpaceDocument
 
 def optimize_designspace_workflow(source_path: str, output_dir: str):
     """Optimize a DesignSpace by converting through DSSketch format"""
-    
+
     # Load original DesignSpace
     ds = DesignSpaceDocument()
     ds.read(source_path)
-    
+
     # Convert to optimized DSSketch string (84-97% smaller)
     dss_string = dssketch.convert_designspace_to_dss_string(ds, optimize=True)
-    
+
     # Save the compact version
     with open(f"{output_dir}/optimized.dssketch", "w") as f:
         f.write(dss_string)
-    
+
     # Convert back to DesignSpace with all optimizations applied
     ds_optimized = dssketch.convert_dss_string_to_designspace(dss_string)
     ds_optimized.write(f"{output_dir}/optimized.designspace")
-    
+
     return len(dss_string)  # Return compressed size for metrics
 ```
 
@@ -195,13 +195,13 @@ try:
     # Convert DSSketch file
     ds = dssketch.convert_to_designspace("font.dssketch")
     print(f"Conversion successful: {len(ds.axes)} axes, {len(ds.sources)} masters")
-    
+
 except FileNotFoundError:
     print("DSSketch file not found")
-    
+
 except ValueError as e:
     print(f"Invalid DSSketch format: {e}")
-    
+
 except Exception as e:
     print(f"Conversion error: {e}")
 ```
@@ -211,7 +211,7 @@ except Exception as e:
 When integrating DSSketch API into your workflow:
 
 - **Storage**: 84-97% size reduction compared to DesignSpace XML
-- **Parsing**: Faster parsing due to simpler format structure  
+- **Parsing**: Faster parsing due to simpler format structure
 - **Human-readable**: Easy to generate DSSketch content programmatically
 - **Version control**: Much better diffs due to compact, structured format
 - **Validation**: Built-in UFO validation and glyph extraction
@@ -295,11 +295,11 @@ axes  # Order of axes controls instance generation sequence
 masters [wght, ital]  # explicit axis order for coordinates
     # If path is set, just filename needed:
     MasterName [362, 0] @base  # [coordinates] @flags
-    
+
     # Or individual paths per master:
     # upright/Light [100, 0]
     # italic/Bold [900, 1]
-    
+
 rules
     dollar > dollar.rvrn (weight >= 480) "dollar alternates"
     cent* > .rvrn (weight >= 480) "cent patterns"  # wildcard patterns
@@ -387,7 +387,7 @@ Rules define glyph substitutions based on axis conditions. The syntax is:
 
 **Recent Fix (важно!):**
 - Fixed wildcard detection for single patterns like `A*` without spaces
-- Changed condition from `if ' ' in from_part and ('*' in from_part...)` 
+- Changed condition from `if ' ' in from_part and ('*' in from_part...)`
 - To: `if '*' in from_part or (' ' in from_part...)`
 - This ensures patterns like `A*` are properly recognized as wildcards
 
@@ -473,7 +473,7 @@ axes
 Typical compression ratios:
 - 2D fonts (weight×italic): 84-85% size reduction
 - 4D fonts (weight×width×contrast×slant): 97% size reduction
-- Complex fonts: Up to 36x smaller (Onweer: 204KB → 5.6KB)
+- Complex fonts: Up to 36x smaller (MyFont: 204KB → 5.6KB)
 
 ## Common Development Tasks
 

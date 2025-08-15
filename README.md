@@ -79,7 +79,7 @@ dss_string = dssketch.convert_designspace_to_dss_string(ds)
 ## Пример DSSketch формата
 
 ```dssketch
-family KazimirText
+family SuperFont
 
 axes
     wght 50:400:900
@@ -140,9 +140,9 @@ Regular > 362  означает:
 
 В папке `examples/` находятся:
 
-- `KazimirText-Variable.designspace` → сложный пример с нелинейным маппингом
+- `SuperFont-Variable.designspace` → сложный пример с нелинейным маппингом
 - `Nagel_VF.designspace` → пример с наклоном (slant)
-- `kazimir-compact.dss` → компактный DSS формат
+- `SuperFont-compact.dss` → компактный DSS формат
 
 ## Архитектура
 
