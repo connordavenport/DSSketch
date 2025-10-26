@@ -1,8 +1,9 @@
 """
 Logging configuration for DSSketch.
 
-Provides centralized logging that outputs to files in the conversion directory
-with filename format: {dssketch_name}_{timestamp}.log
+Provides centralized logging that outputs to files in a 'logs' subdirectory
+of the conversion file's directory. The logs directory is created automatically
+if it doesn't exist. Log filename format: {dssketch_name}_{timestamp}.log
 """
 
 import logging
@@ -34,9 +35,13 @@ class DSSketchLogger:
         base_name = input_path.stem
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Create log filename
+        # Create logs directory if it doesn't exist
+        logs_dir = input_path.parent / "logs"
+        logs_dir.mkdir(exist_ok=True)
+
+        # Create log filename in logs directory
         log_filename = f"{base_name}_{timestamp}.log"
-        log_path = input_path.parent / log_filename
+        log_path = logs_dir / log_filename
 
         # Remove existing handlers if logger already exists
         if cls._logger:
