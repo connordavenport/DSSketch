@@ -141,13 +141,13 @@ dss_content = """
 family MyVariableFont
 axes
     wght 100:400:900
-        Light > 100
+        Thin > 100
         Regular > 400
-        Bold > 900
+        Black > 900
 sources
-    MyFont-Light.ufo [100]
+    MyFont-Thin.ufo [100]
     MyFont-Regular.ufo [400] @base
-    MyFont-Bold.ufo [900]
+    MyFont-Black.ufo [900]
 """
 
 # Convert to DesignSpace object
@@ -317,6 +317,7 @@ axes  # Order of axes controls instance generation sequence
     wght 100:400:900  # min:default:max
         Thin > 100    # label > design_value
         Regular > 400
+        Black > 900
     ital discrete  # discrete axis (equivalent to ital 0:0:1)
         Upright    # simplified format (no > 0.0 needed)
         Italic     # simplified format (no > 1.0 needed)
@@ -326,8 +327,8 @@ sources [wght, ital]  # explicit axis order for coordinates
     SourceName [362, 0] @base  # [coordinates] @flags
 
     # Or individual paths per source:
-    # upright/Light [100, 0]
-    # italic/Bold [900, 1]
+    # upright/Thin [100, 0]
+    # italic/Black [900, 1]
 
 rules
     dollar > dollar.rvrn (weight >= 480) "dollar alternates"  # 480 = design space coordinate
@@ -440,22 +441,22 @@ Rules define glyph substitutions based on axis conditions. The syntax is:
 ```dssketch
 axes
     wght 100:400:900
-        Light > 100         # Label 1
+        Thin > 100          # Label 1
         Regular > 400 @elidable
-        Bold > 900          # Label 2
+        Black > 900         # Label 2
     ital discrete
         Upright @elidable   # Label A
         Italic              # Label B
 
-# Combinations: [Light, Regular, Bold] × [Upright, Italic]
+# Combinations: [Thin, Regular, Black] × [Upright, Italic]
 # Raw: 3 × 2 = 6 instances
 # After elidable cleanup:
-# - "Upright Light" → "Light"
+# - "Upright Thin" → "Thin"
 # - "Upright Regular" → "Regular"
-# - "Upright Bold" → "Bold"
-# - "Italic Light" → "Italic Light"
+# - "Upright Black" → "Black"
+# - "Italic Thin" → "Italic Thin"
 # - "Italic Regular" → "Italic"
-# - "Italic Bold" → "Italic Bold"
+# - "Italic Black" → "Italic Black"
 ```
 
 ## Important Implementation Details
@@ -537,13 +538,14 @@ axes
         Upright @elidable
         Italic
     wght 100:400:900
-        Light > 100
+        Thin > 100
         Regular > 400
+        Black > 900
     wdth 60:100:200
         Condensed > 60
         Normal > 100
 
-# Result: instances like "Italic Light Condensed"
+# Result: instances like "Italic Thin Condensed"
 ```
 
 ### Data Files
@@ -713,15 +715,17 @@ path sources
 
 axes
     wght 100:400:900
-        Light > 100
+        Thin > 100
         Regular > 400 @elidable
+        Black > 900
     ital discrete
         Upright @elidable
         Italic
 
 sources [wght, ital]
-    Font-Light [100, 0]
+    Font-Thin [100, 0]
     Font-Regular [400, 0] @base
+    Font-Black [900, 0]
     Font-Italic [400, 1]
 
 rules

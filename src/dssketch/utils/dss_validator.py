@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 else:
     from ..core.models import DSSDocument
 
+from ..core.mappings import Standards
+
 
 class DSSValidationError(Exception):
     """Raised when DSS document has validation errors"""
@@ -184,6 +186,9 @@ class DSSValidator:
 
         # Validate that minimum and maximum mappings have corresponding sources
         self._validate_extremes_coverage(document)
+
+        # Validate axis labels match standard weight/width names
+        self._validate_axis_label_consistency(document)
 
     @staticmethod
     def normalize_whitespace(line: str) -> str:
@@ -514,6 +519,113 @@ class DSSValidator:
                     f"Variable fonts require sources at extreme coordinates for proper interpolation."
                 )
 
+    def _validate_axis_label_consistency(self, document: DSSDocument):
+        """
+        Validate that axis labels match standard weight/width names.
+
+        Checks:
+        1. For standard axes (wght, wdth): verify labels match expected standard names
+        2. Verify that axis extremes (min/default/max) have corresponding mappings
+        3. If user_value is explicitly specified and differs from standard - warn
+
+        Important: Allows explicit user_value override (e.g., "200 Light > 122")
+        but warns if it doesn't match the standard value for that label.
+        """
+        if not document.axes:
+            return
+
+        for axis in document.axes:
+            # Only validate standard axes that have known mappings
+            if axis.tag not in ['wght', 'wdth']:
+                continue
+
+            axis_type = 'weight' if axis.tag == 'wght' else 'width'
+
+            if not axis.mappings:
+                continue
+
+            # Check 1: Verify axis extremes (min/default/max) have mappings
+            self._check_axis_extremes_coverage(axis, axis_type)
+
+            # Check 2: Validate label consistency with standard mappings
+            for mapping in axis.mappings:
+                self._check_mapping_label_consistency(mapping, axis, axis_type)
+
+    def _check_axis_extremes_coverage(self, axis: "DSSAxis", axis_type: str):
+        """
+        Check that axis minimum, default, and maximum user_values have corresponding mappings.
+
+        For example, if axis is declared as "wght 100:400:900", there should be mappings
+        with user_value = 100, 400, and 900.
+        """
+        required_values = {
+            'minimum': axis.minimum,
+            'default': axis.default,
+            'maximum': axis.maximum
+        }
+
+        # Get all user_values from mappings
+        mapping_user_values = {m.user_value for m in axis.mappings if m.user_value is not None}
+
+        for extreme_name, extreme_value in required_values.items():
+            # Check if any mapping has this user_value (with tolerance for floating point)
+            has_mapping = any(
+                abs(user_val - extreme_value) < 0.1
+                for user_val in mapping_user_values
+            )
+
+            if not has_mapping:
+                # Find expected standard label for this value
+                expected_label = Standards.get_name_by_user_space(extreme_value, axis_type)
+
+                self.errors.append(
+                    f"Axis '{axis.name}' ({extreme_name}={extreme_value}): missing mapping for {extreme_name} value. "
+                    f"Expected mapping with user_value {extreme_value} "
+                    f"(typically labeled '{expected_label}')."
+                )
+
+    def _check_mapping_label_consistency(self, mapping, axis: "DSSAxis", axis_type: str):
+        """
+        Check if mapping label is consistent with standard naming conventions.
+
+        Handles two cases:
+        1. Label with standard name but non-standard user_value (e.g., "200 Light > 122")
+        2. User_value with standard value but non-standard label
+        """
+        label = mapping.label
+        user_value = mapping.user_value
+
+        if user_value is None:
+            return
+
+        # Check if label exists in standard mappings
+        if Standards.has_mapping(label, axis_type):
+            # Get expected user_value for this standard label
+            expected_user_value = Standards.get_user_space_value(label, axis_type)
+
+            # If user_value differs significantly from standard, warn about override
+            if abs(user_value - expected_user_value) > 0.1:
+                self.warnings.append(
+                    f"Axis '{axis.name}': label '{label}' typically maps to user_value {expected_user_value}, "
+                    f"but {user_value} is explicitly specified. "
+                    f"This is allowed but may cause confusion. "
+                    f"Consider using a custom label or the standard value."
+                )
+
+        # Check if user_value matches a standard value
+        expected_label = Standards.get_name_by_user_space(user_value, axis_type)
+
+        # Only warn if expected_label is a real standard name (not fallback like "Weight100")
+        is_standard_name = not expected_label.startswith(axis_type.title())
+
+        if is_standard_name and expected_label != label:
+            # User_value matches a standard value but label is different
+            self.warnings.append(
+                f"Axis '{axis.name}': user_value {user_value} typically uses "
+                f"label '{expected_label}', but '{label}' is specified. "
+                f"Consider using the standard label for better consistency."
+            )
+
     def _coordinates_equal(self, val1: float, val2: float) -> bool:
         """
         Check if two coordinate values are equal, considering that:
@@ -573,15 +685,13 @@ class DSSValidator:
             if len(values) != len(parts):
                 return False, "Empty values in range"
 
-            if len(values) == 2:  # min:max
-                if values[0] >= values[1]:
-                    return False, f"Minimum ({values[0]}) must be less than maximum ({values[1]})"
-            elif len(values) == 3:  # min:default:max
-                if not (values[0] <= values[1] <= values[2]):
-                    return (
-                        False,
-                        f"Range values must be ordered: min <= default <= max ({values[0]} <= {values[1]} <= {values[2]})",
-                    )
+            if len(values) == 2 and values[0] >= values[1]:  # min:max
+                return False, f"Minimum ({values[0]}) must be less than maximum ({values[1]})"
+            elif len(values) == 3 and not (values[0] <= values[1] <= values[2]):  # min:default:max
+                return (
+                    False,
+                    f"Range values must be ordered: min <= default <= max ({values[0]} <= {values[1]} <= {values[2]})",
+                )
 
             return True, ""
         except ValueError:
@@ -647,10 +757,9 @@ class DSSValidator:
 
         # Check for coordinates with wrong bracket types
         # Look for patterns like "name (x, y)" or "name {x, y}" which should be "name [x, y]"
-        if paren_open > 0 and "," in line:
-            if "(" not in line.split("(")[0]:
-                # Likely coordinate with wrong brackets
-                issues.append("Use [] for coordinates, not ()")
+        if paren_open > 0 and "," in line and "(" not in line.split("(")[0]:
+            # Likely coordinate with wrong brackets
+            issues.append("Use [] for coordinates, not ()")
         if curly_open > 0 and "," in line:
             # Likely coordinate with wrong brackets
             issues.append("Use [] for coordinates, not {}")

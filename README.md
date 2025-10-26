@@ -152,36 +152,43 @@ rules
 ```dssketch
 # Control instance generation order
 axes
-    wdth 60:100:200    # First in names: "Condensed Light" - "{width} {weight}"
+    wdth 60:100:200    # First in names: "Condensed Thin" - "{width} {weight}"
         Condensed > 350.0
         Normal > 560.0 @elidable
     wght 100:400:900   # Second in names
-        Light > 100
-        Bold > 900
+        Thin > 100
+        Regular > 400
+        Black > 900
 
 sources [wght, wdth]   # Coordinates follow this order: [weight, width]
-    Light [100, 350]
-    Regular [400, 350]
+    Thin-Condensed [100, 350]
+    Regular-Condensed [400, 350] @base
+    Black-Condensed [900, 350]
+    Thin-Normal [100, 560]
+    Regular-Normal [400, 560]
+    Black-Normal [900, 560]
 ```
 
 #### Custom Axis
 ```dssketch
 # Control instance generation order
 axes
-    CONTRAST CNTR 0:0:100 # First in names: "C2 Condensed Light" - "{CNTR} {width} {weight}"
+    CONTRAST CNTR 0:0:100 # First in names: "C2 Condensed Thin" - "{CNTR} {width} {weight}"
         0 C0 > 100.0 @elidable
         50 C1 > 600.0
         100 C2 > 900.0
     wdth 60:100:200
         Condensed > 350.0
         Normal > 560.0 @elidable
-    wght 100:400:900   # Second in names
-        Light > 100
-        Bold > 900
+    wght 100:400:900   # Third in names
+        Thin > 100
+        Regular > 400
+        Black > 900
 
 sources [wght, wdth, CONTRAST]   # Coordinates follow this order: [weight, width, CONTRAST]
-    Light [100, 350, 100]
-    Regular [400, 350, 100]
+    Thin-Condensed-C2 [100, 350, 900]
+    Regular-Condensed-C2 [400, 350, 900] @base
+    Black-Condensed-C2 [900, 350, 900]
 ```
 
 ### 5. **Robust Error Detection**
@@ -233,13 +240,13 @@ dss_content = """
 family MyFont
 axes
     wght 100:400:900
-        Light > 100
+        Thin > 100
         Regular > 400
-        Bold > 900
+        Black > 900
 sources
-    Light [100]
+    Thin [100]
     Regular [400] @base
-    Bold [900]
+    Black [900]
 """
 
 # Convert DSSketch string to DesignSpace object
@@ -257,21 +264,21 @@ family MyFont
 path path_to_sources
 
 axes
-    wght 100:400:900
-        Light > 100
-        Regular > 400 @elidable
-        Bold > 900
+    wght 300:400:700
+        Light > 300
+        Regular > 390 @elidable
+        Bold > 700
     ital discrete
         Upright @elidable
         Italic
 
 sources [wght, ital]
-    Light [100, 0]
-    Regular [400, 0] @base
-    Bold [900, 0]
-    LightItalic [100, 1]
-    Italic [400, 1]
-    BoldItalic [900, 1]
+    Light [300, 0]
+    Regular [390, 0] @base
+    Bold [700, 0]
+    LightItalic [300, 1]
+    Italic [390, 1]
+    BoldItalic [700, 1]
 
 instances auto
 ```
@@ -379,10 +386,10 @@ Regular > 362  means:
 
 ```dssketch
 axes
-    wght 100:400:900
-        Light > 100     # User 100 → Design 100
-        Regular > 362   # User 400 → Design 362
-        Bold > 900      # User 700 → Design 900
+    wght 300:400:700
+        Light > 0        # User 300 → Design 0
+        Regular > 362    # User 400 → Design 362
+        Bold > 1000      # User 700 → Design 1000
 
 rules
     # This condition uses design space coordinate 362, not user space 400
@@ -413,22 +420,22 @@ axes
         Upright @elidable
         Italic
     wght 100:400:900     # Weight second in names
-        Light > 100
+        Thin > 100
         Regular > 400 @elidable
-        Bold > 900
+        Black > 900
 
-instances auto  # Generates: "Light", "Italic", "Bold", "Italic Light", "Italic Bold"
+instances auto  # Generates: "Thin", "Regular", "Black", "Italic Thin", "Italic", "Italic Black"
 ```
 
 **How it works:**
 1. **Combinatorial generation**: Creates cartesian product of all axis labels
-   - Axis 1 (ital): `[Upright, Italic]` × Axis 2 (wght): `[Light, Regular, Bold]`
+   - Axis 1 (ital): `[Upright, Italic]` × Axis 2 (wght): `[Thin, Regular, Black]`
    - Result: 2 × 3 = **6 combinations**
 2. **Elidable name cleanup**: Removes redundant `@elidable` labels
-   - `Upright Light` → `Light`
+   - `Upright Thin` → `Thin`
    - `Upright Regular` → `Regular` (both parts elidable)
    - `Italic Regular` → `Italic` (Regular is elidable)
-3. **Final instances**: `Light`, `Regular`, `Bold`, `Italic`, `Italic Light`, `Italic Bold`
+3. **Final instances**: `Thin`, `Regular`, `Black`, `Italic`, `Italic Thin`, `Italic Black`
 
 **Axis order controls name sequence:**
 ```dssketch
@@ -438,21 +445,23 @@ axes
         Condensed > 60
         Normal > 100 @elidable
     wght 100:400:900
-        Light > 100
-        Bold > 900
+        Thin > 100
+        Regular > 400
+        Black > 900
 
-# Result: "Condensed Light", "Condensed Bold", "Light", "Bold"
+# Result: "Condensed Thin", "Condensed Regular", "Condensed Black", "Thin", "Regular", "Black"
 
 # Order 2: Weight first, then Width
 axes
     wght 100:400:900
-        Light > 100
-        Bold > 900
+        Thin > 100
+        Regular > 400
+        Black > 900
     wdth 60:100:200
         Condensed > 60
         Normal > 100 @elidable
 
-# Result: "Light Condensed", "Bold Condensed", "Light", "Bold"
+# Result: "Thin Condensed", "Regular Condensed", "Black Condensed", "Thin", "Regular", "Black"
 ```
 
 **Complex multi-axis example:**
@@ -462,19 +471,19 @@ axes
         Condensed > 60
         Normal > 100 @elidable
     wght 100:400:900
-        Light > 100
-        Regular > 400 @elidabe
-        Bold > 900
+        Thin > 100
+        Regular > 400 @elidable
+        Black > 900
     ital discrete
         Upright @elidable
         Italic
 
 instances auto
 # Generates: 2 × 3 × 2 = 12 combinations
-# Result: Light, Regular, Bold,
-#         Condensed Light, Condensed, Condensed Bold,
-#         Light Italic, Italic, Bold Italic,
-#         Condensed Light Italic, Condensed Italic, Condensed Bold Italic
+# Result: Thin, Regular, Black,
+#         Condensed Thin, Condensed, Condensed Black,
+#         Thin Italic, Italic, Black Italic,
+#         Condensed Thin Italic, Condensed Italic, Condensed Black Italic
 ```
 
 **Result**: Automatic generation of all meaningful style combinations with proper PostScript names, file paths, and style linking based on axes order.

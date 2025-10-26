@@ -156,15 +156,17 @@ path sources
 
 axes
     wght 100:400:900
-        Light > 100
+        Thin > 100
         Regular > 400 @elidable
+        Black > 900
     ital discrete
         Upright @elidable
         Italic
 
 sources [wght, ital]
-    Font-Light [100, 0]
+    Font-Thin [100, 0]
     Font-Regular [400, 0] @base
+    Font-Black [900, 0]
     Font-Italic [400, 1]
 
 rules
