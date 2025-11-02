@@ -177,7 +177,7 @@ axes
         0 C0 > 100.0 @elidable
         50 C1 > 600.0
         100 C2 > 900.0
-    wdth 60:100:200
+    wdth 60:100:100
         Condensed > 350.0
         Normal > 560.0 @elidable
     wght 100:400:900   # Third in names
