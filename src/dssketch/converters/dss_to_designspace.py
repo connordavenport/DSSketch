@@ -295,9 +295,11 @@ class DSSToDesignSpace:
                     if axis.name.lower() == standard_name or axis.tag.lower() in variations:
                         return axis.name
 
-        # If no match found, return original (fallback)
-        DSSketchLogger.warning(f"Could not find axis '{dss_axis_name}' in DesignSpace, using as-is")
-        return dss_axis_name
+        # If no match found, this is an error - rules must reference existing axes
+        raise ValueError(
+            f"Rule references axis '{dss_axis_name}' which is not defined in the document. "
+            f"Available axes: {', '.join([axis.name for axis in doc.axes])}"
+        )
 
     def _expand_wildcard_pattern(
         self, dss_rule: DSSRule, doc: DesignSpaceDocument

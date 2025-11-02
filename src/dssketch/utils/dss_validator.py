@@ -66,17 +66,25 @@ class DSSValidator:
         Raises:
             DSSValidationError: If critical structural errors found
         """
+        # Preserve errors from parsing phase
+        parsing_errors = self.errors.copy()
+        parsing_warnings = self.warnings.copy()
+
         self.errors.clear()
         self.warnings.clear()
 
         # Structural validation (critical)
-        self._validate_structure(document)
+        self._validate_structure(document, parsing_errors)
 
         # Content validation (non-critical)
         self._validate_content(document)
 
-        # Check for critical errors
-        critical_errors = [e for e in self.errors if e.startswith("CRITICAL:")]
+        # Merge parsing errors/warnings with validation errors/warnings
+        all_errors = parsing_errors + self.errors
+        all_warnings = parsing_warnings + self.warnings
+
+        # Check for critical errors (from both parsing and validation)
+        critical_errors = [e for e in all_errors if e.startswith("CRITICAL:")]
         if critical_errors:
             error_msg = (
                 "Critical structural errors prevent DesignSpace generation:\\n"
@@ -84,10 +92,17 @@ class DSSValidator:
             )  # Remove "CRITICAL: "
             raise DSSValidationError(error_msg, critical=True)
 
-        return self.errors.copy(), self.warnings.copy()
+        return all_errors, all_warnings
 
-    def _validate_structure(self, document: DSSDocument):
-        """Validate critical document structure"""
+    def _validate_structure(self, document: DSSDocument, parsing_errors: List[str] = None):
+        """Validate critical document structure
+
+        Args:
+            document: DSS document to validate
+            parsing_errors: Errors from parsing phase (to avoid duplicate error messages)
+        """
+        if parsing_errors is None:
+            parsing_errors = []
 
         # Check family name
         if not document.family or not document.family.strip():
@@ -97,9 +112,13 @@ class DSSValidator:
 
         # Check axes - CRITICAL
         if not document.axes:
-            self.errors.append(
-                "CRITICAL: No axes found - cannot generate valid DesignSpace without axes"
-            )
+            # Only add "No axes found" if there are no parsing errors about axes
+            # (parsing errors would explain WHY axes are missing)
+            has_axis_parsing_errors = any("axis range" in err.lower() for err in parsing_errors)
+            if not has_axis_parsing_errors:
+                self.errors.append(
+                    "CRITICAL: No axes found - cannot generate valid DesignSpace without axes"
+                )
         else:
             # Validate each axis has proper setup
             for i, axis in enumerate(document.axes):
@@ -162,7 +181,16 @@ class DSSValidator:
                         self.warnings.append(
                             f"Axis '{axis.name}' has incomplete mapping: {mapping.label}"
                         )
-                        
+
+                    # Check that mapping user_value is within axis range
+                    if mapping.user_value is not None:
+                        if mapping.user_value < axis.minimum or mapping.user_value > axis.maximum:
+                            self.errors.append(
+                                f"Axis '{axis.name}': mapping '{mapping.label}' has user_value {mapping.user_value} "
+                                f"which is outside the axis range [{axis.minimum}, {axis.maximum}]. "
+                                f"All mappings must be within the axis min/max range."
+                            )
+
                 # Check for missing @elidable flags - important for instance naming
                 elidable_count = sum(1 for mapping in axis.mappings if mapping.elidable)
                 if elidable_count == 0:

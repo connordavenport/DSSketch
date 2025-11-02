@@ -260,8 +260,9 @@ class DSSParser:
         # Pattern 4: "ital binary" (registered binary axis)
         # Pattern 5: "weight 100:400:900" (legacy form with inferred tag)
 
-        if re.match(r"^\w+\s+\w{4}\s+", line):
+        if re.match(r"^\w+\s+\w{4}\s+", line) and ">" not in line:
             # Full form: name tag range
+            # Note: Exclude lines with ">" to avoid matching mappings like "500 Bold > 1000"
             parts = line.split()
             name = parts[0]
             tag = parts[1]
@@ -537,14 +538,15 @@ class DSSParser:
         # This only works for standard axes (weight, width)
         axis_type = axis_name.lower()
         if axis_type in ["weight", "width"]:
-            try:
-                user_value = Standards.get_user_space_value(value_str, axis_type)
-                return user_value
-            except Exception as e:
+            # Check if this label exists in standard mappings
+            if not Standards.has_mapping(value_str, axis_type):
                 raise ValueError(
                     f"Label '{value_str}' not found in standard {axis_type} mappings. "
-                    f"Use numeric values for custom labels or non-standard axes."
+                    f"Use numeric values or valid standard labels (e.g., Thin, Light, Regular, Bold, Black for weight)."
                 )
+
+            user_value = Standards.get_user_space_value(value_str, axis_type)
+            return user_value
         else:
             raise ValueError(
                 f"Label-based ranges only supported for 'weight' and 'width' axes. "

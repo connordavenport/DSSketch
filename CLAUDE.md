@@ -545,7 +545,10 @@ Rules define glyph substitutions based on axis conditions. The syntax is:
 - **Coordinate Validation**: Validates coordinate format and numeric values (`[abc, def]` → `"Invalid coordinate value"`)
 - **Bracket Type Detection**: Warns about wrong bracket types (`(100, 0)` → `"Use [] for coordinates, not ()"`)
 - **Axis Range Validation**: Checks axis range logic (`900:100:400` → `"Range values must be ordered"`)
+- **Label-Based Range Validation**: Validates that label names in axis ranges exist in standard mappings (`wght s:r:Bold` → `"Label 's' not found in standard weight mappings"`)
 - **Rule Syntax Validation**: Validates substitution rule completeness and syntax
+- **Rule Axis Validation**: Ensures rules only reference existing axes (`(italic == 1)` when no italic axis → `"Rule references axis 'italic' which is not defined"`)
+- **Mapping Range Validation**: Validates all axis mappings are within axis min/max range (`Bold > 1000` with axis `300:400:500` → `"mapping 'Bold' has user_value 700.0 outside the axis range [300.0, 500.0]"`)
 - **Multiple Base Source Detection**: Prevents multiple @base sources which breaks DesignSpace
 - **Two Processing Modes**: Strict mode (fails on errors) vs. non-strict (collects warnings, but **critical errors always fail**)
 - **Whitespace Normalization**: Handles multiple spaces, tabs, and mixed whitespace gracefully
@@ -775,6 +778,107 @@ def _resolve_axis_range_value(self, value_str: str, axis_name: str) -> float:
 - All discrete axis operations now go through `DiscreteAxisHandler.load_discrete_labels()` and `DiscreteAxisHandler.is_discrete()`
 - This ensures consistency and supports user data file overrides via DataManager
 
+### Implementation Notes for New Validations (2025-01)
+
+**1. Label-Based Range Validation**
+
+**Code Location:**
+- Validation logic: `src/dssketch/parsers/dss_parser.py:_resolve_axis_range_value()` (lines 510-554)
+- Key validation check: `Standards.has_mapping()` (lines 542-546)
+- Test suite: `tests/test_label_range_validation.py` (8 tests)
+
+**Key Implementation:**
+```python
+def _resolve_axis_range_value(self, value_str: str, axis_name: str) -> float:
+    """Resolve axis range value - can be numeric or label name"""
+    # Try parsing as numeric first
+    try:
+        return float(value_str)
+    except ValueError:
+        pass
+
+    # Only works for weight and width axes
+    axis_type = axis_name.lower()
+    if axis_type in ["weight", "width"]:
+        # Check if this label exists in standard mappings
+        if not Standards.has_mapping(value_str, axis_type):
+            raise ValueError(
+                f"Label '{value_str}' not found in standard {axis_type} mappings. "
+                f"Use numeric values or valid standard labels."
+            )
+        user_value = Standards.get_user_space_value(value_str, axis_type)
+        return user_value
+    else:
+        raise ValueError(
+            f"Label-based ranges only supported for 'weight' and 'width' axes."
+        )
+```
+
+**Error Detection:**
+- Invalid labels like `s`, `r`, `Foo` are caught immediately during parsing
+- Provides helpful error message with guidance to use standard labels
+- Works in both strict and non-strict modes
+
+**2. Rule Axis Validation**
+
+**Code Location:**
+- Validation logic: `src/dssketch/converters/dss_to_designspace.py:_find_axis_name_in_designspace()` (lines 298-302)
+- Changed from warning to error when axis not found
+- Test suite: `tests/test_rule_axis_validation.py` (5 tests)
+
+**Key Implementation:**
+```python
+def _find_axis_name_in_designspace(self, dss_axis_name: str, doc: DSSDocument) -> str:
+    """Find axis name in DesignSpace, raising error if not found"""
+    # ... search logic ...
+
+    # If no match found, this is an error
+    raise ValueError(
+        f"Rule references axis '{dss_axis_name}' which is not defined in the document. "
+        f"Available axes: {', '.join([axis.name for axis in doc.axes])}"
+    )
+```
+
+**Critical Behavior:**
+- Rules must only reference axes that exist in the document
+- Provides clear error message listing all available axes
+- Users must fix by either adding the axis or removing/modifying the rule
+- This prevents invalid DesignSpace generation
+
+**3. Mapping Range Validation**
+
+**Code Location:**
+- Validation logic: `src/dssketch/utils/dss_validator.py:_validate_content()` (lines 185-192)
+- Checks during document validation phase
+- Test suite: `tests/test_mapping_range_validation.py` (8 tests)
+
+**Key Implementation:**
+```python
+def _validate_content(self, document: DSSDocument):
+    """Validate document content (non-critical errors)"""
+    for axis in document.axes:
+        for mapping in axis.mappings:
+            # Check that mapping user_value is within axis range
+            if mapping.user_value is not None:
+                if mapping.user_value < axis.minimum or mapping.user_value > axis.maximum:
+                    self.errors.append(
+                        f"Axis '{axis.name}': mapping '{mapping.label}' has user_value {mapping.user_value} "
+                        f"which is outside the axis range [{axis.minimum}, {axis.maximum}]. "
+                        f"All mappings must be within the axis min/max range."
+                    )
+```
+
+**Validation Rules:**
+- All axis mappings must have `user_value` within `[axis.minimum, axis.maximum]`
+- Mappings at exact minimum or maximum are valid
+- Applies to all axis types: weight, width, custom axes
+- Clear error message showing the mapping, its value, and valid range
+
+**Error Preservation:**
+- All three validations properly preserve parsing errors through the validation phase
+- `dss_validator.py:validate_document()` merges parsing_errors with validation errors
+- Critical errors always cause immediate failure regardless of mode
+
 ### Module Reference
 
 Complete reference of all modules in the DSSketch project. **IMPORTANT: Always check this reference before implementing new functionality to avoid code duplication.**
@@ -952,9 +1056,12 @@ Complete reference of all modules in the DSSketch project. **IMPORTANT: Always c
 
 - `tests/test_parser_validation.py` - Comprehensive parser validation test suite
 - `tests/test_label_based_syntax.py` - Label-based syntax tests (coordinates and ranges)
+- `tests/test_label_range_validation.py` - Label-based range validation tests (8 tests)
+- `tests/test_rule_axis_validation.py` - Rule axis validation tests (5 tests)
+- `tests/test_mapping_range_validation.py` - Mapping range validation tests (8 tests)
 - `tests/test_discrete_axis_no_warning.py` - Discrete axis warning tests
 - `tests/test_human_axis_names.py` - Human-readable axis name tests
-- Tests cover: keyword typos, empty values, coordinate validation, bracket detection, axis ranges, rule syntax
+- Tests cover: keyword typos, empty values, coordinate validation, bracket detection, axis ranges, rule syntax, label validation, axis references, mapping bounds
 - Run with: `python -m pytest tests/ -v`
 
 ### File Extensions
@@ -1040,7 +1147,49 @@ dollar > .rvrn (weight >= )    # → "Invalid rule syntax: ..."
 dollar .rvrn (weight >= 400)   # → "Rule missing '>' separator"
 ```
 
-**7. Critical Structure Validation (Always Fails!):**
+**7. Label-Based Range Validation:**
+```python
+# Validates label names in axis ranges
+wght s:r:Bold       # → "Label 's' not found in standard weight mappings"
+wght Thin:Foo:Black # → "Label 'Foo' not found in standard weight mappings"
+wdth A:B:C          # → "Label 'A' not found in standard width mappings"
+
+# Valid examples:
+wght Thin:Regular:Black  # Uses standard weight labels
+wdth Condensed:Normal:Extended  # Uses standard width labels
+```
+
+**8. Rule Axis Validation:**
+```python
+# Rules must reference existing axes
+a > a.italic (italic == 1)  # → "Rule references axis 'italic' which is not defined"
+# When italic axis is not defined in axes section
+
+# Valid example (italic axis exists):
+axes
+    ital discrete
+        Upright
+        Italic
+rules
+    a > a.italic (italic == 1)  # OK - italic axis exists
+```
+
+**9. Mapping Range Validation:**
+```python
+# Mappings must be within axis range
+axes
+    wght 300:400:500
+        Bold > 1000  # → "mapping 'Bold' has user_value 700.0 outside the axis range [300.0, 500.0]"
+
+# Valid example:
+axes
+    wght 300:400:900
+        Light > 300  # user_value 300 is within [300, 900]
+        Regular > 400
+        Bold > 700   # user_value 700 is within [300, 900]
+```
+
+**10. Critical Structure Validation (Always Fails!):**
 ```python
 # Missing axes section
 family SuperFont
@@ -1151,6 +1300,18 @@ Font-Light (100, 0) # → Font-Light [100, 0]
 
 # Invalid ranges
 wght 900:100:400    # → wght 100:400:900
+
+# Invalid label-based ranges
+wght s:r:Bold       # → wght Thin:Regular:Black (use standard labels)
+wght Foo:Bar:Baz    # → wght 100:400:900 (or use standard labels)
+
+# Rules referencing non-existent axes
+a > a.italic (italic == 1)  # → Add italic axis first, or remove rule
+
+# Mappings outside axis range
+axes
+    wght 300:400:500
+        Bold > 1000  # → Change axis range or mapping value
 
 # Incomplete rules
 * > (weight >= 400) # → * > .rvrn (weight >= 400)
