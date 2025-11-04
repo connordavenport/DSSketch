@@ -35,10 +35,14 @@ class DSSWriter:
         optimize: bool = True,
         ds_doc: Optional[DesignSpaceDocument] = None,
         base_path: Optional[str] = None,
+        use_label_coordinates: bool = True,
+        use_label_ranges: bool = True,
     ):
         self.optimize = optimize
         self.ds_doc = ds_doc
         self.base_path = base_path
+        self.use_label_coordinates = use_label_coordinates
+        self.use_label_ranges = use_label_ranges
 
     @staticmethod
     def _quote_if_spaces(value: str) -> str:
@@ -52,6 +56,20 @@ class DSSWriter:
         if " " in value:
             return f'"{value}"'
         return value
+
+    @staticmethod
+    def _format_number(value: float) -> str:
+        """Format number - remove .0 for integer values
+
+        Examples:
+        - 100.0 -> "100"
+        - 100.5 -> "100.5"
+        - -20.0 -> "-20"
+        - -15.5 -> "-15.5"
+        """
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value))
+        return str(value)
 
     def write(self, dss_doc: DSSDocument) -> str:
         """Generate DSS string from document"""
@@ -103,6 +121,39 @@ class DSSWriter:
 
         return "\n".join(lines).strip()
 
+    def _get_label_for_user_value(self, axis: DSSAxis, user_value: float) -> Optional[str]:
+        """Try to find a label for a user space value
+
+        First checks actual axis mappings (user-defined labels),
+        then falls back to standard mappings.
+
+        Args:
+            axis: The axis to check
+            user_value: The user space value
+
+        Returns:
+            Label name if found, None otherwise
+        """
+        # First priority: check actual axis mappings (user-defined labels)
+        for mapping in axis.mappings:
+            if mapping.user_value == user_value:
+                return mapping.label
+
+        # Second priority: check standard mappings (only for weight/width)
+        axis_type = axis.name.lower()
+        if axis_type not in ["weight", "width"]:
+            return None
+
+        try:
+            label = Standards.get_name_by_user_space(user_value, axis_type)
+            # Check if it's a standard label (not a generated numeric one like "Weight400")
+            if label and not (label.startswith(axis_type.title()) and label[len(axis_type):].isdigit()):
+                return label
+        except Exception:
+            pass
+
+        return None
+
     def _format_axis(self, axis: DSSAxis) -> List[str]:
         """Format axis definition"""
         lines = []
@@ -126,12 +177,41 @@ class DSSWriter:
                 lines.append(f"    {axis.tag} discrete")
         else:
             # Continuous axis or non-standard discrete axis
+            # Try to use label-based range if enabled and available
+            # ONLY for standard axes (weight, width)
+            range_str = None
+            axis_type = axis.name.lower()
+            if self.use_label_ranges and self.optimize and axis_type in ["weight", "width"]:
+                min_label = self._get_label_for_user_value(axis, axis.minimum)
+                default_label = self._get_label_for_user_value(axis, axis.default)
+                max_label = self._get_label_for_user_value(axis, axis.maximum)
+
+                # Only use label format if all three values have labels
+                # AND they match standard values (no custom overrides)
+                if min_label and default_label and max_label:
+                    # Verify that labels match standard values
+                    # (to avoid conflicts when parsing back)
+                    try:
+                        std_min = Standards.get_user_space_value(min_label, axis_type)
+                        std_default = Standards.get_user_space_value(default_label, axis_type)
+                        std_max = Standards.get_user_space_value(max_label, axis_type)
+
+                        # Only use label-based range if values match standards
+                        if (std_min == axis.minimum and
+                            std_default == axis.default and
+                            std_max == axis.maximum):
+                            range_str = f"{min_label}:{default_label}:{max_label}"
+                    except Exception:
+                        pass
+
+            # Fallback to numeric format
+            if not range_str:
+                range_str = f"{self._format_number(axis.minimum)}:{self._format_number(axis.default)}:{self._format_number(axis.maximum)}"
+
             if axis_name:
-                lines.append(
-                    f"    {axis_name} {axis.tag} {axis.minimum}:{axis.default}:{axis.maximum}"
-                )
+                lines.append(f"    {axis_name} {axis.tag} {range_str}")
             else:
-                lines.append(f"    {axis.tag} {axis.minimum}:{axis.default}:{axis.maximum}")
+                lines.append(f"    {axis.tag} {range_str}")
 
         # Mappings
         if axis.mappings:
@@ -145,20 +225,30 @@ class DSSWriter:
                     lines.append(label_line)
                 else:
                     # Traditional format
-                    # Check if we can use compact form (name only)
-                    try:
-                        std_user_val = Standards.get_user_value_for_name(mapping.label, axis.name)
-                        if std_user_val == mapping.user_value and self.optimize:
-                            # Compact form: just "Regular > 125"
-                            label_line = f"        {mapping.label} > {mapping.design_value}"
-                        else:
-                            # Full form: "400 Regular > 125"
-                            label_line = f"        {mapping.user_value} {mapping.label} > {mapping.design_value}"
-                    except Exception:
-                        # Full form when standard lookup fails
-                        label_line = (
-                            f"        {mapping.user_value} {mapping.label} > {mapping.design_value}"
-                        )
+                    # Check if we can use compact form (name only) for standard axes only
+                    use_compact_form = False
+                    axis_type = axis.name.lower()
+
+                    # Only try compact form for standard axes (weight, width)
+                    if self.optimize and axis_type in ["weight", "width"]:
+                        # Check if this label exists in standard mappings
+                        if Standards.has_mapping(mapping.label, axis_type):
+                            try:
+                                std_user_val = Standards.get_user_value_for_name(mapping.label, axis.name)
+                                if std_user_val == mapping.user_value:
+                                    use_compact_form = True
+                            except Exception:
+                                pass
+
+                    if use_compact_form:
+                        # Compact form: just "Regular > 125"
+                        label_line = f"        {mapping.label} > {self._format_number(mapping.design_value)}"
+                    else:
+                        # Full form: "400 Regular > 125" or "100 C2 > 900"
+                        # Always include user_value for non-standard axes
+                        user_val_str = self._format_number(mapping.user_value) if mapping.user_value is not None else ""
+                        design_val_str = self._format_number(mapping.design_value)
+                        label_line = f"        {user_val_str} {mapping.label} > {design_val_str}"
 
                     if mapping.elidable:
                         label_line += " @elidable"
@@ -184,13 +274,37 @@ class DSSWriter:
         # For registered axes with non-standard tags, keep original name
         return axis_name
 
+    def _get_label_for_coordinate(self, axis: DSSAxis, value: float) -> Optional[str]:
+        """Try to find a label for a coordinate value
+
+        Args:
+            axis: The axis to search
+            value: The design space coordinate value
+
+        Returns:
+            Label name if found, None otherwise
+        """
+        for mapping in axis.mappings:
+            if mapping.design_value == value:
+                return mapping.label
+        return None
+
     def _format_source(self, source: DSSSource, axes: List[DSSAxis]) -> str:
         """Format source definition"""
         # Get coordinates in axis order
         coords = []
         for axis in axes:
             value = source.location.get(axis.name, 0)
-            coords.append(str(int(value) if value.is_integer() else value))
+
+            # Try to use label if enabled and available
+            if self.use_label_coordinates:
+                label = self._get_label_for_coordinate(axis, value)
+                if label:
+                    coords.append(label)
+                    continue
+
+            # Fallback to numeric representation with proper formatting
+            coords.append(self._format_number(value))
 
         # Use filename if it contains path, otherwise use name
         if "/" in source.filename:
@@ -223,18 +337,18 @@ class DSSWriter:
                 max_val = cond["maximum"]
 
                 if min_val == max_val:
-                    cond_parts.append(f"{axis} == {min_val}")
+                    cond_parts.append(f"{axis} == {self._format_number(min_val)}")
                 elif min_val is not None and max_val is not None:
                     if min_val == 0:
-                        cond_parts.append(f"{axis} <= {max_val}")
+                        cond_parts.append(f"{axis} <= {self._format_number(max_val)}")
                     elif max_val >= 1000:
-                        cond_parts.append(f"{axis} >= {min_val}")
+                        cond_parts.append(f"{axis} >= {self._format_number(min_val)}")
                     else:
-                        cond_parts.append(f"{min_val} <= {axis} <= {max_val}")
+                        cond_parts.append(f"{self._format_number(min_val)} <= {axis} <= {self._format_number(max_val)}")
                 elif min_val is not None:
-                    cond_parts.append(f"{axis} >= {min_val}")
+                    cond_parts.append(f"{axis} >= {self._format_number(min_val)}")
                 elif max_val is not None:
-                    cond_parts.append(f"{axis} <= {max_val}")
+                    cond_parts.append(f"{axis} <= {self._format_number(max_val)}")
 
             if cond_parts:
                 condition_str = f"({' && '.join(cond_parts)})"
@@ -374,7 +488,7 @@ class DSSWriter:
         coords = []
         for axis in axes:
             value = instance.location.get(axis.name, 0)
-            coords.append(str(int(value) if value.is_integer() else value))
+            coords.append(self._format_number(value))
 
         return f"    {instance.stylename} [{', '.join(coords)}]"
     
