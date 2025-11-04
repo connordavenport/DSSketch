@@ -13,20 +13,14 @@ The core idea of DSSketch is to provide a **human-friendly, simple, and intuitiv
 
 ### Running the converter
 ```bash
-# Primary CLI (preferred method) - UFO validation and optimization by default
-python dssketch_cli.py font.designspace
-python dssketch_cli.py font.dssketch
-
-# After pip install -e . you can use CLI commands directly:
+# After pip install -e . (recommended - installs CLI commands):
 dssketch font.designspace       # Main converter
 dssketch font.dssketch -o output.designspace
+dss font.designspace            # Alternative short command
 
-# CLI options:
-dssketch font.dssketch --no-validation        # Skip UFO validation (not recommended)
-dssketch font.dssketch --allow-missing-ufos   # Allow missing UFO files
-
-# Or use Python directly:
-python dssketch_cli.py input.designspace -o output.dssketch
+# Without installation (using Python module directly):
+python -m dssketch.cli font.designspace
+python -m dssketch.cli font.dssketch -o output.designspace
 
 # Import as package:
 from dssketch import DSSParser, DSSWriter
@@ -62,10 +56,14 @@ pip install -r requirements.txt
 
 ### Testing examples
 ```bash
-# Test with provided examples
-python dssketch_cli.py examples/SuperFont-Variable.designspace
-python dssketch_cli.py examples/MyFont_v2_VER1.dssketch
-python dssketch_cli.py examples/wildcard-test.dss
+# Test with provided examples (after pip install -e .):
+dssketch examples/SuperFont-Variable.designspace
+dssketch examples/MyFont_v2_VER1.dssketch
+dssketch examples/wildcard-test.dss
+
+# Or without installation:
+python -m dssketch.cli examples/SuperFont-Variable.designspace
+python -m dssketch.cli examples/MyFont_v2_VER1.dssketch
 ```
 
 ### Data file management
@@ -247,10 +245,10 @@ When integrating DSSketch API into your workflow:
 
 ### Main Components
 
-**Module Structure (after refactoring):**
-- `dssketch_cli.py` - Main command-line interface
+**Module Structure:**
 - `src/dssketch/` - Package root
-  - `cli.py` - CLI implementation
+  - `cli.py` - Main command-line interface implementation
+  - `data_cli.py` - Data file management CLI
   - `converters/` - Conversion modules
   - `parsers/` - Parsing modules
   - `writers/` - Writing modules

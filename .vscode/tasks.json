@@ -6,7 +6,8 @@
             "type": "shell",
             "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
-                "dssketch_cli.py",
+                "-m",
+                "dssketch.cli",
                 "${input:designSpaceFile}"
             ],
             "options": {
@@ -29,7 +30,8 @@
             "type": "shell",
             "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
-                "dssketch_cli.py",
+                "-m",
+                "dssketch.cli",
                 "${input:dssFile}"
             ],
             "options": {
@@ -52,7 +54,8 @@
             "type": "shell",
             "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
-                "dssketch_cli.py",
+                "-m",
+                "dssketch.cli",
                 "${file}"
             ],
             "options": {
@@ -122,7 +125,8 @@
             "type": "shell",
             "command": "${workspaceFolder}/.venv/bin/python",
             "args": [
-                "dssketch_cli.py",
+                "-m",
+                "dssketch.cli",
                 "--help"
             ],
             "options": {

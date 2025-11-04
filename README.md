@@ -316,8 +316,8 @@ dssketch input.designspace -o output.dssketch
 # Skip UFO validation (not recommended)
 dssketch font.dssketch --no-validation
 
-# Alternative: direct Python
-python dssketch_cli.py font.designspace
+# Without installation (using Python module directly)
+python -m dssketch.cli font.designspace
 ```
 
 ### Python API
@@ -718,9 +718,12 @@ python -m pytest tests/test_typo_validation.py -v
 ## Testing
 
 ```bash
-# Test with provided examples
-python dssketch_cli.py examples/SuperFont-Variable.designspace
-python dssketch_cli.py examples/MyFont_v2_VER1.dssketch
+# Test with provided examples (after pip install -e .)
+dssketch examples/SuperFont-Variable.designspace
+dssketch examples/MyFont_v2_VER1.dssketch
+
+# Or without installation
+python -m dssketch.cli examples/SuperFont-Variable.designspace
 
 # Run validation tests
 python -m pytest tests/test_parser_validation.py -v
