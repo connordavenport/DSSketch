@@ -3,7 +3,10 @@ Logging configuration for DSSketch.
 
 Provides centralized logging that outputs to files in a 'logs' subdirectory
 of the conversion file's directory. The logs directory is created automatically
-if it doesn't exist. Log filename format: {dssketch_name}_{timestamp}.log
+if it doesn't exist. Log filename format: dssketch_{dssketch_name}_{timestamp}.log
+
+The logger automatically maintains only the 5 most recent log files with the
+'dssketch_' prefix, removing older logs to prevent log directory bloat.
 """
 
 import logging
@@ -17,6 +20,30 @@ class DSSketchLogger:
 
     _logger: Optional[logging.Logger] = None
     _current_log_file: Optional[Path] = None
+
+    @classmethod
+    def _cleanup_old_logs(cls, logs_dir: Path, keep_count: int = 5) -> None:
+        """
+        Remove old log files, keeping only the most recent ones.
+
+        Args:
+            logs_dir: Directory containing log files
+            keep_count: Number of most recent log files to keep (default: 5)
+        """
+        # Find all dssketch log files
+        log_files = sorted(
+            logs_dir.glob("dssketch_*.log"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True
+        )
+
+        # Remove old log files beyond keep_count
+        for old_log in log_files[keep_count:]:
+            try:
+                old_log.unlink()
+            except Exception:
+                # Silently ignore deletion errors
+                pass
 
     @classmethod
     def setup_logger(cls, file_path: str, log_level: int = logging.INFO) -> logging.Logger:
@@ -33,14 +60,14 @@ class DSSketchLogger:
         # Get base filename without extension
         input_path = Path(file_path)
         base_name = input_path.stem
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:17]  # Include microseconds, trim to 2 digits
 
         # Create logs directory if it doesn't exist
         logs_dir = input_path.parent / "logs"
         logs_dir.mkdir(exist_ok=True)
 
-        # Create log filename in logs directory
-        log_filename = f"{base_name}_{timestamp}.log"
+        # Create log filename in logs directory with dssketch_ prefix
+        log_filename = f"dssketch_{base_name}_{timestamp}.log"
         log_path = logs_dir / log_filename
 
         # Remove existing handlers if logger already exists
@@ -79,6 +106,10 @@ class DSSketchLogger:
         # Log startup message
         cls._logger.info(f"DSSketch logging started for file: {file_path}")
         cls._logger.info(f"Log file: {log_path}")
+
+        # Clean up old log files, keeping only the 5 most recent
+        # (done after creating new log file so it's included in the count)
+        cls._cleanup_old_logs(logs_dir, keep_count=5)
 
         return cls._logger
 
