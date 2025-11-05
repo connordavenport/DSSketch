@@ -162,39 +162,3 @@ class DSSketchLogger:
                 handler.close()
             cls._logger = None
             cls._current_log_file = None
-
-
-# Convenience functions for backward compatibility
-def setup_logging(file_path: str, log_level: int = logging.INFO) -> logging.Logger:
-    """Setup logging for a conversion operation."""
-    return DSSketchLogger.setup_logger(file_path, log_level)
-
-
-def get_logger() -> Optional[logging.Logger]:
-    """Get the current logger instance."""
-    return DSSketchLogger.get_logger()
-
-
-def log_info(message: str) -> None:
-    """Log info message."""
-    DSSketchLogger.info(message)
-
-
-def log_warning(message: str) -> None:
-    """Log warning message."""
-    DSSketchLogger.warning(message)
-
-
-def log_error(message: str) -> None:
-    """Log error message."""
-    DSSketchLogger.error(message)
-
-
-def log_debug(message: str) -> None:
-    """Log debug message."""
-    DSSketchLogger.debug(message)
-
-
-def log_success(message: str) -> None:
-    """Log success message."""
-    DSSketchLogger.success(message)

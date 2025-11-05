@@ -10,13 +10,6 @@ if TYPE_CHECKING:
 
 from ..utils.logging import DSSketchLogger
 
-# from icecream import ic
-
-# ruff: noqa: E402
-# import tdFontFamilyMapper
-# importlib.reload(tdFontFamilyMapper)
-# from tdFontFamilyMapper import getInstancesMapping
-
 ELIDABLE_MAJOR_AXIS = "weight"
 DEFAULT_AXIS_ORDER = [
     "Optical",
