@@ -41,9 +41,9 @@ class DSSParser:
         """Extract value that may be quoted ("value" or 'value') or plain (value)
 
         Supports:
-        - Double quotes: "DIN Condensed" -> DIN Condensed
-        - Single quotes: 'DIN Condensed' -> DIN Condensed
-        - No quotes: DIN -> DIN
+        - Double quotes: "FontName Condensed" -> FontName Condensed
+        - Single quotes: 'FontName Condensed' -> FontName Condensed
+        - No quotes: FontName -> FontName
         - Strips leading/trailing whitespace from extracted value
 
         Returns the extracted value.
@@ -295,7 +295,9 @@ class DSSParser:
                 if not is_label_based:
                     is_valid, error_msg = DSSValidator.validate_axis_range(range_part)
                     if not is_valid:
-                        self.validator.errors.append(f"Invalid axis range for '{name}': {error_msg}")
+                        self.validator.errors.append(
+                            f"Invalid axis range for '{name}': {error_msg}"
+                        )
                         return
 
                 if range_part in ["binary", "discrete"]:
@@ -305,14 +307,20 @@ class DSSParser:
                     try:
                         # Try to resolve each value (supports both numbers and labels)
                         minimum = self._resolve_axis_range_value(values[0], name)
-                        default = self._resolve_axis_range_value(values[1], name) if len(values) > 2 else minimum
+                        default = (
+                            self._resolve_axis_range_value(values[1], name)
+                            if len(values) > 2
+                            else minimum
+                        )
                         maximum = self._resolve_axis_range_value(values[-1], name)
                     except ValueError as e:
                         self.validator.errors.append(f"Invalid axis range for '{name}': {e}")
                         return
                 else:
                     try:
-                        minimum = default = maximum = self._resolve_axis_range_value(range_part, name)
+                        minimum = default = maximum = self._resolve_axis_range_value(
+                            range_part, name
+                        )
                     except ValueError as e:
                         self.validator.errors.append(f"Invalid axis range for '{name}': {e}")
                         return
@@ -356,7 +364,9 @@ class DSSParser:
                 if not is_label_based:
                     is_valid, error_msg = DSSValidator.validate_axis_range(range_part)
                     if not is_valid:
-                        self.validator.errors.append(f"Invalid axis range for '{name}': {error_msg}")
+                        self.validator.errors.append(
+                            f"Invalid axis range for '{name}': {error_msg}"
+                        )
                         return
 
                 if range_part in ["binary", "discrete"]:
@@ -365,14 +375,20 @@ class DSSParser:
                     values = range_part.split(":")
                     try:
                         minimum = self._resolve_axis_range_value(values[0], name)
-                        default = self._resolve_axis_range_value(values[1], name) if len(values) > 2 else minimum
+                        default = (
+                            self._resolve_axis_range_value(values[1], name)
+                            if len(values) > 2
+                            else minimum
+                        )
                         maximum = self._resolve_axis_range_value(values[-1], name)
                     except ValueError as e:
                         self.validator.errors.append(f"Invalid axis range for '{name}': {e}")
                         return
                 else:
                     try:
-                        minimum = default = maximum = self._resolve_axis_range_value(range_part, name)
+                        minimum = default = maximum = self._resolve_axis_range_value(
+                            range_part, name
+                        )
                     except ValueError as e:
                         self.validator.errors.append(f"Invalid axis range for '{name}': {e}")
                         return
@@ -392,9 +408,8 @@ class DSSParser:
             # Check if second part is a valid range/keyword
             second_part = parts[1]
             is_keyword = second_part in ["binary", "discrete"]
-            is_range = (
-                ":" in second_part
-                or (len(second_part) > 0 and (second_part[0].isdigit() or second_part[0] == "-"))
+            is_range = ":" in second_part or (
+                len(second_part) > 0 and (second_part[0].isdigit() or second_part[0] == "-")
             )
 
             if not (is_keyword or is_range):
@@ -430,7 +445,9 @@ class DSSParser:
                 if not is_label_based:
                     is_valid, error_msg = DSSValidator.validate_axis_range(range_part)
                     if not is_valid:
-                        self.validator.errors.append(f"Invalid axis range for '{name}': {error_msg}")
+                        self.validator.errors.append(
+                            f"Invalid axis range for '{name}': {error_msg}"
+                        )
                         return
 
                 if range_part in ["binary", "discrete"]:
@@ -439,14 +456,20 @@ class DSSParser:
                     values = range_part.split(":")
                     try:
                         minimum = self._resolve_axis_range_value(values[0], name)
-                        default = self._resolve_axis_range_value(values[1], name) if len(values) > 2 else minimum
+                        default = (
+                            self._resolve_axis_range_value(values[1], name)
+                            if len(values) > 2
+                            else minimum
+                        )
                         maximum = self._resolve_axis_range_value(values[-1], name)
                     except ValueError as e:
                         self.validator.errors.append(f"Invalid axis range for '{name}': {e}")
                         return
                 else:
                     try:
-                        minimum = default = maximum = self._resolve_axis_range_value(range_part, name)
+                        minimum = default = maximum = self._resolve_axis_range_value(
+                            range_part, name
+                        )
                     except ValueError as e:
                         self.validator.errors.append(f"Invalid axis range for '{name}': {e}")
                         return
@@ -533,9 +556,7 @@ class DSSParser:
 
         # Validate mapping label for potential typos
         is_valid_label, suggested_label = DSSValidator.validate_mapping_label(
-            label,
-            self.current_axis.tag,
-            self.document.axes
+            label, self.current_axis.tag, self.document.axes
         )
         if not is_valid_label and suggested_label:
             self.validator.warnings.append(
@@ -717,15 +738,23 @@ class DSSParser:
 
             # Check if all parts are numeric
             all_numeric = all(
-                x.replace(".", "").replace("-", "").replace("+", "").replace("e", "").replace("E", "").isdigit()
-                for x in coord_parts if x
+                x.replace(".", "")
+                .replace("-", "")
+                .replace("+", "")
+                .replace("e", "")
+                .replace("E", "")
+                .isdigit()
+                for x in coord_parts
+                if x
             )
 
             if all_numeric:
                 # Traditional numeric validation
                 is_valid, error_msg = DSSValidator.validate_coordinates(coords_str)
                 if not is_valid:
-                    self.validator.errors.append(f"Invalid coordinates in source '{name}': {error_msg}")
+                    self.validator.errors.append(
+                        f"Invalid coordinates in source '{name}': {error_msg}"
+                    )
                     return
 
             # Resolve coordinates - supports both numbers and labels

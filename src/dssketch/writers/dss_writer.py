@@ -49,8 +49,8 @@ class DSSWriter:
         """Add double quotes around value if it contains spaces
 
         Examples:
-        - "DIN Condensed" -> '"DIN Condensed"'
-        - "DIN" -> "DIN"
+        - "FontName Condensed" -> '"FontName Condensed"'
+        - "FontName" -> "FontName"
         - "My Font Light.ufo" -> '"My Font Light.ufo"'
         """
         if " " in value:
@@ -147,7 +147,9 @@ class DSSWriter:
         try:
             label = Standards.get_name_by_user_space(user_value, axis_type)
             # Check if it's a standard label (not a generated numeric one like "Weight400")
-            if label and not (label.startswith(axis_type.title()) and label[len(axis_type):].isdigit()):
+            if label and not (
+                label.startswith(axis_type.title()) and label[len(axis_type) :].isdigit()
+            ):
                 return label
         except Exception:
             pass
@@ -197,9 +199,11 @@ class DSSWriter:
                         std_max = Standards.get_user_space_value(max_label, axis_type)
 
                         # Only use label-based range if values match standards
-                        if (std_min == axis.minimum and
-                            std_default == axis.default and
-                            std_max == axis.maximum):
+                        if (
+                            std_min == axis.minimum
+                            and std_default == axis.default
+                            and std_max == axis.maximum
+                        ):
                             range_str = f"{min_label}:{default_label}:{max_label}"
                     except Exception:
                         pass
@@ -234,7 +238,9 @@ class DSSWriter:
                         # Check if this label exists in standard mappings
                         if Standards.has_mapping(mapping.label, axis_type):
                             try:
-                                std_user_val = Standards.get_user_value_for_name(mapping.label, axis.name)
+                                std_user_val = Standards.get_user_value_for_name(
+                                    mapping.label, axis.name
+                                )
                                 if std_user_val == mapping.user_value:
                                     use_compact_form = True
                             except Exception:
@@ -242,11 +248,17 @@ class DSSWriter:
 
                     if use_compact_form:
                         # Compact form: just "Regular > 125"
-                        label_line = f"        {mapping.label} > {self._format_number(mapping.design_value)}"
+                        label_line = (
+                            f"        {mapping.label} > {self._format_number(mapping.design_value)}"
+                        )
                     else:
                         # Full form: "400 Regular > 125" or "100 C2 > 900"
                         # Always include user_value for non-standard axes
-                        user_val_str = self._format_number(mapping.user_value) if mapping.user_value is not None else ""
+                        user_val_str = (
+                            self._format_number(mapping.user_value)
+                            if mapping.user_value is not None
+                            else ""
+                        )
                         design_val_str = self._format_number(mapping.design_value)
                         label_line = f"        {user_val_str} {mapping.label} > {design_val_str}"
 
@@ -537,26 +549,26 @@ class DSSWriter:
             coords.append(self._format_number(value))
 
         return f"    {instance.stylename} [{', '.join(coords)}]"
-    
+
     def _get_axis_tag(self, axis_name: str) -> str:
         """Convert axis name to standard tag format, supporting both short and long forms"""
         # Standard axis mappings
         axis_mappings = {
-            'weight': 'wght',
-            'width': 'wdth', 
-            'italic': 'ital',
-            'slant': 'slnt',
-            'optical': 'opsz',
-            'opticalsize': 'opsz',
+            "weight": "wght",
+            "width": "wdth",
+            "italic": "ital",
+            "slant": "slnt",
+            "optical": "opsz",
+            "opticalsize": "opsz",
         }
-        
+
         # Convert to lowercase for lookup
         lower_name = axis_name.lower()
-        
+
         # For standard axes, return the mapped tag
         if lower_name in axis_mappings:
             return axis_mappings[lower_name]
-        
+
         # For custom axes, match the display name format (uppercase)
         # This ensures consistency with _get_axis_display_name output
         return self._get_axis_display_name(axis_name, "")
