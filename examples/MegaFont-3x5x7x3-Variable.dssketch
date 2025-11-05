@@ -2,23 +2,23 @@ family MegaFont
 path MegaFont-sources
 axes
     CONTRAST CNTR 0:0:100
-        0 NonContrast > 100 @elidable
-        50 LowContrast > 600
-        100 HighContrast > 900
+        0 NonContrast > 0 @elidable
+        50 LowContrast > 100
+        100 HighContrast > 200
     wdth 60:100:200
-        Compressed > 100
-        Condensed > 350
+        Compressed > 0
+        Condensed > 380
         Normal > 560 @elidable
         150 Wide > 700
-        200 Extended > 900
+        200 Extended > 1000
     wght Thin:Regular:Black
-        Thin > 100
-        200 Light > 240
-        Regular > 400 @elidable
-        Medium > 467
-        Bold > 600
-        Extrabold > 750
-        Black > 900
+        Thin > 0
+        200 Light > 230
+        Regular > 420 @elidable
+        Medium > 521
+        Bold > 725
+        Extrabold > 990
+        Black > 1000
     slnt -20:0:20
         -20 Reverse > -20
         0 Neutral > 0 @elidable
