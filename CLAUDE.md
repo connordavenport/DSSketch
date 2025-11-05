@@ -68,21 +68,17 @@ python -m dssketch.cli examples/MyFont_v2_VER1.dssketch
 
 ### Data file management
 ```bash
-# Install package in development mode first
-pip install -e .
+# After pip install -e . (recommended):
+dssketch-data info                              # Show data files locations
+dssketch-data copy unified-mappings.yaml        # Copy default file for editing
+dssketch-data edit                              # Open user data directory
+dssketch-data reset --file unified-mappings.yaml # Reset specific file
+dssketch-data reset --all                       # Reset all files
 
-# Show data files locations and status
-dssketch-data info
-
-# Copy default file for editing
-dssketch-data copy unified-mappings.yaml
-
-# Open user data directory in file manager
-dssketch-data edit
-
-# Reset files to defaults
-dssketch-data reset --file unified-mappings.yaml
-dssketch-data reset --all
+# Without installation (using Python module directly):
+python -m dssketch.data_cli info
+python -m dssketch.data_cli copy unified-mappings.yaml
+python -m dssketch.data_cli edit
 ```
 
 ## API Integration

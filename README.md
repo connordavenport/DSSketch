@@ -600,20 +600,17 @@ instances auto
 
 ### Data Management
 ```bash
-# Install package first
-pip install -e .
+# After pip install -e . (recommended):
+dssketch-data info                              # Show data file locations
+dssketch-data copy unified-mappings.yaml        # Copy default file for editing
+dssketch-data edit                              # Open user data directory
+dssketch-data reset --file unified-mappings.yaml # Reset specific file
+dssketch-data reset --all                       # Reset all files
 
-# Show data file locations
-dssketch-data info
-
-# Copy default files for customization
-dssketch-data copy unified-mappings.yaml
-
-# Edit user data directory
-dssketch-data edit
-
-# Reset to defaults
-dssketch-data reset --all
+# Without installation (using Python module directly):
+python -m dssketch.data_cli info
+python -m dssketch.data_cli copy unified-mappings.yaml
+python -m dssketch.data_cli edit
 ```
 
 ### Error Handling
