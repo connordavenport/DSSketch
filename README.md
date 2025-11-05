@@ -218,7 +218,7 @@ sources [wght, ital]
 
 rules
     dollar* cent* > .rvrn (weight >= Bold) "heavy alternates"
-    g > g.alt (Regular <= weight <= Bold) "medium weight"
+    A > A.alt (Regular <= weight <= Bold) "medium weight"
 
 instances auto
 ```
@@ -716,11 +716,11 @@ python -m pytest tests/test_typo_validation.py -v
 
 ```bash
 # Test with provided examples (after pip install -e .)
-dssketch examples/SuperFont-Variable.designspace
-dssketch examples/MyFont_v2_VER1.dssketch
+dssketch examples/SuperFont-6x2.designspace
+dssketch examples/MegaFont-3x5x7x3-Variable.dssketch
 
 # Or without installation
-python -m dssketch.cli examples/SuperFont-Variable.designspace
+python -m dssketch.cli examples/SuperFont-6x2.designspace
 
 # Run validation tests
 python -m pytest tests/test_parser_validation.py -v
@@ -732,9 +732,8 @@ python -m pytest tests/test_parser_validation.py::TestParserValidation::test_key
 ## Examples
 
 The `examples/` directory contains:
-- `SuperFont-Variable.designspace` → Complex multi-axis font with non-linear mapping
-- `SuperFont-compact.dss` → Equivalent DSSketch format (93% smaller)
-- `wildcard-test.dss` → Demonstrates advanced wildcard rules
+- `examples/MegaFont-3x5x7x3-Variable.designspace` → Complex multi-axis font
+- `examples/SuperFont-6x2.dssketch` → Equivalent DSSketch format (93% smaller)
 - Various test files showing edge cases and features
 
 ---

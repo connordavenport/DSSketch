@@ -57,13 +57,13 @@ pip install -r requirements.txt
 ### Testing examples
 ```bash
 # Test with provided examples (after pip install -e .):
-dssketch examples/SuperFont-Variable.designspace
-dssketch examples/MyFont_v2_VER1.dssketch
-dssketch examples/wildcard-test.dss
+dssketch examples/MegaFont-3x5x7x3-Variable.designspace
+dssketch examples/SuperFont-6x2.designspace
+dssketch examples/MegaFont-3x5x7x3-Variable.dssketch
 
 # Or without installation:
-python -m dssketch.cli examples/SuperFont-Variable.designspace
-python -m dssketch.cli examples/MyFont_v2_VER1.dssketch
+python -m dssketch.cli examples/MegaFont-3x5x7x3-Variable.designspace
+python -m dssketch.cli examples/SuperFont-6x2.dssketch
 ```
 
 ### Data file management

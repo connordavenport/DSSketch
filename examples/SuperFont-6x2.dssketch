@@ -1,0 +1,28 @@
+family SuperFont
+path SuperFont-sources
+
+axes
+    weight Thin:Regular:Black
+        Thin > 0
+        Light > 211
+        Regular > 356 @elidable
+        Medium > 586
+        Bold > 789
+        Black > 1000
+    italic discrete
+        Upright @elidable
+        Italic
+
+sources [wght, ital]
+    SuperFont_Thin [Thin, Upright]
+    SuperFont_Regular [Regular, Upright]
+    SuperFont_Black [Black, Upright]
+    SuperFont_Thin-Italic [Thin, Italic]
+    SuperFont_Italic [Regular, Italic]
+    SuperFont_Black-Italic [Black, Italic]
+
+rules
+    dollar* cent* > .rvrn (weight >= Bold) "heavy alternates"
+    A > A.alt (Regular <= weight <= Bold) "medium weight"
+
+instances auto

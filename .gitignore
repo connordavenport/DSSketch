@@ -49,7 +49,6 @@ htmlcov/
 *.swo
 
 # Project specific
-/examples/
 *.designspace.backup
 *.dssketch.backup
 temp/
@@ -62,6 +61,6 @@ TODO.local
 NOTES.local
 tests/*
 tests/fixtures/*
-*.ufo
 backup-before-cleanup.bundle
 .ruff_cache/
+.log
