@@ -504,9 +504,9 @@ DSSketch supports three formats for defining axis mappings, giving you full cont
 ```dssketch
 axes
     wght 100:400:900
-        Light > 300     # Uses standard user-space value (300)
-        Regular > 400   # Uses standard user-space value (400)
-        Bold > 700      # Uses standard user-space value (700)
+        Light > 251     # Uses standard user-space value (300) → design-space value 251
+        Regular > 398   # Uses standard user-space value (400) → design-space value 398
+        Bold > 870      # Uses standard user-space value (700) → design-space value 870
 ```
 **How it works**: For known labels (Light, Regular, Bold, etc.), user-space values are automatically taken from standard mappings in `data/unified-mappings.yaml`.
 
