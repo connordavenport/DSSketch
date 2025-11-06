@@ -313,9 +313,19 @@ path sources  # common directory for sources
 
 axes  # Order of axes controls instance generation sequence
     wght 100:400:900  # min:default:max (numeric format)
-        Thin > 100    # label > design_value
-        Regular > 400
-        Black > 900
+        # Three axis mapping formats supported:
+
+        # Format 1: label > design_value (standard/custom labels)
+        Thin > 100     # Standard label, user_value inferred from mappings (100)
+        Regular > 400  # Standard label, user_value = 400
+        Black > 900    # Standard label, user_value = 900
+
+        # Format 2: user_value label > design_value (explicit user-space)
+        200 Light > 230        # Explicit: user=200 (override standard 300), design=230
+        980 DeepBlack > 1000   # Custom label: user=980, design=1000
+
+        # Format 3: custom_label > design_value (user=design)
+        MyCustom > 500         # Unknown label: user_value = design_value = 500
 
     # Label-based axis ranges (for weight and width only)
     wght Thin:Regular:Black  # Uses standard user-space values
@@ -825,6 +835,106 @@ def _resolve_axis_range_value(self, value_str: str, axis_name: str) -> float:
 - Removed duplicate `_load_discrete_labels()` method (12 lines eliminated)
 - All discrete axis operations now go through `DiscreteAxisHandler.load_discrete_labels()` and `DiscreteAxisHandler.is_discrete()`
 - This ensures consistency and supports user data file overrides via DataManager
+
+### Implementation Notes for Axis Mapping Formats
+
+**Code Location:**
+- Axis mapping parsing: `src/dssketch/parsers/dss_parser.py:_parse_axis_mapping()` (lines 491-560)
+- Format detection: Lines 503-527 (three-way format detection logic)
+
+**Three Supported Formats:**
+
+**1. Standard Label Format** (`Light > 300`):
+- **Detection**: Line contains `>`, left side is non-numeric string
+- **Logic**: Parser checks if label exists in `Standards` mappings (lines 522-524)
+- **User-space value**: Retrieved from standard mappings (e.g., Light=300, Bold=700)
+- **Code path**: `Standards.has_mapping()` → `Standards.get_user_value_for_name()`
+- **Example**: `Light > 300` → user=300 (from Standards), label="Light", design=300
+
+**2. Custom Label Format** (`MyCustom > 500`):
+- **Detection**: Line contains `>`, left side is non-numeric string, label NOT in Standards
+- **Logic**: Unknown labels use design-space value as user-space value (lines 526-527)
+- **User-space value**: Equals design-space value (user=design)
+- **Code path**: Falls through to `user = design` assignment
+- **Example**: `MyCustom > 500` → user=500, label="MyCustom", design=500
+
+**3. Explicit User-Space Format** (`300 Light > 295`):
+- **Detection**: Line contains `>`, left side starts with numeric value (lines 512-517)
+- **Logic**: `left_parts[0].replace(".", "").replace("-", "").isdigit()` check
+- **Parsing**: `user = float(left_parts[0])`, `label = " ".join(left_parts[1:])`, `design = float(parts[1])`
+- **User-space value**: Explicitly provided (overrides any standard mappings)
+- **Code path**: Direct numeric parsing of first component
+- **Examples**:
+  - `300 Light > 295` → user=300, label="Light", design=295
+  - `200 Light > 230` → user=200 (overrides standard 300), design=230
+  - `980 DeepBlack > 1000` → user=980 (custom label), design=1000
+  - `0 NonContrast > 0` → user=0, label="NonContrast", design=0
+  - `150 Wide > 700` → user=150 (overrides standard 100), design=700
+
+**Key Implementation Code (dss_parser.py:503-527):**
+```python
+if ">" in line:
+    # Traditional format: "300 Light > 295" or "0.0 Upright > 0.0"
+    parts = line.split(">")
+    left = parts[0].strip()
+    design = float(parts[1].strip())
+
+    # Parse left side
+    left_parts = left.split()
+
+    if left_parts[0].replace(".", "").replace("-", "").isdigit():
+        # Format: "300 Light" or "0.0 Upright" - EXPLICIT USER-SPACE
+        user = float(left_parts[0])
+        label = " ".join(left_parts[1:]) if len(left_parts) > 1 else ""
+        if not label:
+            label = Standards.get_name_for_user_value(user, self.current_axis.name)
+    else:
+        # Format: "Light > 295" or "XX > 60" - infer user value
+        label = left
+        # Check if this label exists in standard mappings
+        if Standards.has_mapping(label, self.current_axis.name):
+            # Use standard mapping for known labels
+            user = Standards.get_user_value_for_name(label, self.current_axis.name)
+        else:
+            # For unknown labels, use design_value as user_value
+            user = design
+```
+
+**Real-World Usage:**
+- **Standard format**: Most common for standard weight/width scales
+- **Custom format**: Useful for custom axes (CONTRAST, CUSTOM, etc.)
+- **Explicit format**: Required for:
+  - Overriding standard mappings (e.g., `200 Light > 230` instead of 300)
+  - Non-standard CSS scales (e.g., 50-980 instead of 100-900)
+  - Custom axes with meaningful user-space values
+
+**Examples from `examples/MegaFont-3x5x7x3-Variable.dssketch`:**
+```dssketch
+axes
+    CONTRAST CNTR 0:0:100
+        0 NonContrast > 0       # user=0, label=NonContrast, design=0
+        50 LowContrast > 100    # user=50, label=LowContrast, design=100
+        100 HighContrast > 200  # user=100, label=HighContrast, design=200
+    wdth 60:100:200
+        Compressed > 0          # Standard: user=62.5 (from mappings), design=0
+        Condensed > 380         # Standard: user=75 (from mappings), design=380
+        Normal > 560            # Standard: user=100 (from mappings), design=560
+        150 Wide > 700          # Explicit: user=150 (overrides standard 100), design=700
+        200 Extended > 1000     # Explicit: user=200 (overrides standard 125), design=1000
+    wght Thin:Regular:Black
+        Thin > 0                # Standard: user=100 (from mappings), design=0
+        200 Light > 230         # Explicit: user=200 (overrides standard 300), design=230
+        Regular > 420           # Standard: user=400 (from mappings), design=420
+        Bold > 725              # Standard: user=700 (from mappings), design=725
+        Black > 1000            # Standard: user=900 (from mappings), design=1000
+```
+
+**Important Notes:**
+- The explicit format `user_value label > design_value` is fully functional but was not previously documented
+- All three formats are actively used in production examples (`examples/MegaFont-3x5x7x3-Variable.dssketch`)
+- Format detection is automatic - no flags or configuration needed
+- Supports negative values: `-20 Reverse > -20`
+- No tests currently cover explicit user-space format (test gap identified)
 
 ### Implementation Notes for New Validations (2025-01)
 

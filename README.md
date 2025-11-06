@@ -496,6 +496,74 @@ rules
     dollar > .heavy (weight >= 362)  # Activates at Regular and heavier
 ```
 
+### Axis Mapping Formats
+
+DSSketch supports three formats for defining axis mappings, giving you full control over user-space and design-space coordinates:
+
+#### 1. Standard Label (inferred user-space)
+```dssketch
+axes
+    wght 100:400:900
+        Light > 300     # Uses standard user-space value (300)
+        Regular > 400   # Uses standard user-space value (400)
+        Bold > 700      # Uses standard user-space value (700)
+```
+**How it works**: For known labels (Light, Regular, Bold, etc.), user-space values are automatically taken from standard mappings in `data/unified-mappings.yaml`.
+
+#### 2. Custom Label (design-space as user-space)
+```dssketch
+axes
+    wght 100:400:900
+        MyCustom > 500  # Custom label, user_value = design_value = 500
+```
+**How it works**: For unknown labels, user-space value equals design-space value.
+
+#### 3. Explicit User-Space Mapping (full control)
+```dssketch
+axes
+    wght 50:500:980
+        50 UltraThin > 0       # Explicit: user=50, design=0
+        200 Light > 230        # Override: user=200 instead of standard 300
+        500 Regular > 420      # Override: user=500 instead of standard 400
+        980 DeepBlack > 1000   # Custom: user=980, design=1000
+
+    wdth 60:100:200
+        Condensed > 380        # Standard: user=80 (from mappings)
+        Normal > 560           # Standard: user=100 (from mappings)
+        150 Wide > 700         # Override: user=150 instead of standard 100
+        200 Extended > 1000    # Override: user=200 instead of standard 125
+
+    CUSTOM CSTM 0:50:100
+        0 Low > 0              # Custom axis: user=0, design=0
+        50 Medium > 100        # Custom axis: user=50, design=100
+        100 High > 200         # Custom axis: user=100, design=200
+```
+
+**Format**: `user_value label > design_value`
+
+**Use cases**:
+- **Create custom labels** with explicit user-space values for non-standard scales
+- **Override standard mappings** with different user-space coordinates
+- **Define custom axes** with meaningful user-space values
+- **Fine-tune weight/width scales** beyond standard CSS values
+
+**Example from `examples/MegaFont-3x5x7x3-Variable.dssketch`**:
+```dssketch
+axes
+    wdth 60:100:200
+        Compressed > 0
+        Condensed > 380
+        Normal > 560 @elidable
+        150 Wide > 700         # user=150 (custom), design=700
+        200 Extended > 1000    # user=200 (custom), design=1000
+    wght Thin:Regular:Black
+        Thin > 0
+        200 Light > 230        # user=200 (override standard 300), design=230
+        Regular > 420 @elidable
+        Bold > 725
+        Black > 1000
+```
+
 ### Discrete Axes
 Traditional XML requires complex `values="0 1"` attributes. DSSketch makes it simple:
 
