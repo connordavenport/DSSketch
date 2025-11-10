@@ -22,7 +22,7 @@ sources [wght, ital]
     Black-Italic [Black, Italic]
 
 instances auto
-    skip
+    skip 
         Thin Italic
         Light
         Medium Italic
