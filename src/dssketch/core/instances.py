@@ -43,7 +43,6 @@ Key Features:
 Dependencies:
 - fontTools.designspaceLib
 - itertools
-- icecream (for debugging)
 
 Main Functions:
 - createInstances: Creates all possible instance combinations from given axes

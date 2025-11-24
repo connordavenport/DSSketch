@@ -51,7 +51,7 @@ dss_string = dssketch.convert_designspace_to_dss_string(ds)
 # Install dependencies
 pip install -r requirements.txt
 
-# Dependencies: fonttools, fontParts, designspaceProblems, icecream
+# Dependencies: fonttools, fontParts, defcon, pyyaml
 ```
 
 ### Testing examples

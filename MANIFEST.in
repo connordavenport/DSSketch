@@ -19,6 +19,7 @@ exclude TODO.md
 exclude pyproject.toml.example
 exclude .gitignore
 exclude .gitattributes
+exclude examples
 
 # Exclude development directories
 prune tests
