@@ -1,0 +1,162 @@
+# AmstelvarA2-Roman avar2 example
+# Simplified version for syntax validation
+# Full version has 29 mappings and 67 axes
+
+family Amstelvar
+suffix A2-Roman
+
+# User-facing axes
+axes
+    opsz 8:14:144
+        Text > 8
+        Default > 14
+        Display > 144
+    wght 100:400:1000
+        Thin > 100
+        Regular > 400 @elidable
+        Black > 1000
+    wdth 50:100:125
+        Condensed > 50
+        Normal > 100 @elidable
+        Extended > 125
+    # Semi-parametric (visible to advanced users)
+    XTSP -100:0:100
+    WDSP 0:320:1000
+    GRAD -300:0:500
+
+# Hidden parametric axes (61 axes)
+axes hidden
+    # Uppercase - opaque
+    XOUC 4:90:310
+    YOUC 4:66:208
+    XOUA 22:91:174
+    YOUA 5:53:101
+    # Uppercase - transparent
+    XTUC 72:400:668
+    XTUR 58:561:907
+    XTUD 50:410:705
+    XTUA 228:258:401
+    YTUC 541:750:875
+    YTJD -204:-104:-16
+    # Lowercase - opaque
+    XOLC 4:85:293
+    YOLC 4:58:149
+    XOLA 20:91:153
+    YOLA 4:53:100
+    # Lowercase - transparent
+    XTLC 42:243:500
+    XTLR 46:337:625
+    XTLD 74:248:501
+    XTLA 170:235:470
+    YTLC 436:511:594
+    # Vertical metrics
+    YTAS 665:767:875
+    YTDE -310:-240:-100
+    YTFI 281:771:896
+    # Serifs - horizontal uppercase
+    XSHU 0:104:154
+    YSHU 0:50:150
+    XSVU 0:55:130
+    YSVU 0:165:215
+    XVAU 0:18:62
+    YHAU 0:18:68
+    # Serifs - horizontal lowercase
+    XSHL 0:74:124
+    YSHL 0:40:140
+    XSVL 0:54:146
+    YSVL 40:70:155
+    XVAL 0:17:99
+    YHAL 0:18:42
+    # Serifs - figures
+    XSHF 0:129:239
+    YSHF 0:47:147
+    XSVF 0:61:131
+    YSVF 0:117:222
+    XVAF 8:18:47
+    YHAF 0:18:68
+    # Counters
+    XQUC 22:136:220
+    YQUC 92:141:307
+    XQLC 14:82:148
+    YQLC 40:90:170
+    XQFI 11:80:192
+    YQFI 76:144:334
+    # Curves
+    XUCS 32:145:205
+    XUCR 0:40:100
+    XUCD -62:-15:57
+    XLCS 14:112:182
+    XLCR -13:32:98
+    XLCD -68:-5:62
+    # Figures
+    XOFI 4:88:302
+    YOFI 4:56:196
+    XTFI 40:329:868
+    XFIR 0:37:97
+    # Other
+    XDOT 23:144:274
+    YTOS 0:11:30
+    XTTW 0:5:30
+    YTTL 0:57:104
+    BARS 0:0:683
+
+# Variables for frequently repeated values
+avar2 vars
+    $YTUC = 750
+    $YTDE = -240
+    $YHAU = 18
+    $YHAL = 18
+    $YHAF = 18
+    $YTAS_display = 756
+    $YTFI_display = 773
+
+# Matrix format for opsz=Display combinations
+# Horizontal parametric axes
+avar2 matrix "opsz144_horizontal"
+    outputs  XOUC XOLC XOFI XTUC XTUR XTUD XTLC XTLR XTLD XTFI
+
+    "opsz144"                 [opsz=Display]                         84   78   80  348  470  410  224  308  254  320
+    "opsz144_wdth125"         [opsz=Display, wdth=Extended]          86   80   79  540  702  600  414  502  418  490
+    "opsz144_wdth50"          [opsz=Display, wdth=Condensed]         78   71   72  168  214  242  106  140  153  148
+    "opsz144_wght100"         [opsz=Display, wght=Thin]              34   34   30  418  571  433  288  402  290  418
+    "opsz144_wght1000"        [opsz=Display, wght=Black]            244  234  237  198  251  306  151  175  214  225
+    "opsz144_wght1000_wdth125"[opsz=Display, wght=Black, wdth=Ext]  246  237  236  390  483  504  341  369  391  294
+    "opsz144_wght1000_wdth50" [opsz=Display, wght=Black, wdth=Cnd]  239  228  229   72   66  170   46   49  104   44
+    "opsz144_wght100_wdth125" [opsz=Display, wght=Thin, wdth=Ext]    35   35   31  598  788  622  465  593  439  582
+    "opsz144_wght100_wdth50"  [opsz=Display, wght=Thin, wdth=Cnd]    30   31   28  210  316  255  135  200  162  222
+
+# Vertical parametric axes (overlay on same inputs)
+avar2 matrix "opsz144_vertical"
+    outputs  YTUC  YTLC  YTAS        YTDE   YTFI        YOUC YOLC YOFI
+
+    [opsz=Display]                        $YTUC  471  $YTAS_display  $YTDE  $YTFI_display   16   14   14
+    [opsz=Display, wdth=Extended]         $YTUC  470  $YTAS_display  $YTDE  $YTFI_display   16   14   20
+    [opsz=Display, wdth=Condensed]        $YTUC  468  $YTAS_display   -230  $YTFI_display   19   14   16
+    [opsz=Display, wght=Thin]             $YTUC  471            748   -230            768   13    9    7
+    [opsz=Display, wght=Black]            $YTUC  496  $YTAS_display   -230  778             34   36   26
+    [opsz=Display, wght=Black, wdth=Ext]  $YTUC  496  $YTAS_display   -230  778             35   35   32
+    [opsz=Display, wght=Black, wdth=Cnd]  $YTUC  495  $YTAS_display   -230  778             30   35   28
+    [opsz=Display, wght=Thin, wdth=Ext]   $YTUC  470            748   -230            769   13    9   10
+    [opsz=Display, wght=Thin, wdth=Cnd]   $YTUC  465            748   -230            758   12    8    8
+
+# Serifs and other axes (simplified - just showing pattern)
+avar2 matrix "opsz144_serifs"
+    outputs  XSHU XSHL XSHF YSHU YSHL YSHF YHAU  YHAL  YHAF
+
+    [opsz=Display]                         82   61  109   12   10   12  $YHAU $YHAL $YHAF
+    [opsz=Display, wdth=Extended]         102   86  169   12   12   12  $YHAU $YHAL $YHAF
+    [opsz=Display, wdth=Condensed]         58   37   84   10   10   10  $YHAU $YHAL $YHAF
+    [opsz=Display, wght=Thin]              92   71  142    9    6   12  $YHAU    14    10
+    [opsz=Display, wght=Black]             68   61  104   28   30   27  $YHAU $YHAL $YHAF
+    [opsz=Display, wght=Black, wdth=Ext]   88   86  164   28   32   27  $YHAU $YHAL $YHAF
+    [opsz=Display, wght=Black, wdth=Cnd]   46   35   92   27   27   25  $YHAU $YHAL $YHAF
+    [opsz=Display, wght=Thin, wdth=Ext]   114   98  204    9    9   12  $YHAU    14    10
+    [opsz=Display, wght=Thin, wdth=Cnd]    56   40   92    6    4    9  $YHAU    14     8
+
+# Simple mappings for XTSP axis (standalone)
+avar2
+    "XTSP-100" [XTSP=-100] > WDSP=100
+    "XTSP100"  [XTSP=100]  > WDSP=600
+
+# TODO: Add remaining mappings for opsz=8 combinations
+# TODO: Add wght/wdth only mappings (without opsz)

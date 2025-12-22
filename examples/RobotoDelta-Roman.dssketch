@@ -1,0 +1,130 @@
+# RobotoDelta-Roman avar2 example
+# Simplified version for syntax validation
+# Full version has 38 mappings and 39 axes
+
+family RobotoDelta
+suffix Roman
+
+# User-facing axes (6)
+axes
+    opsz 8:14:144
+    wght 100:400:1000
+        Thin > 100
+        Regular > 400 @elidable
+        Black > 1000
+    wdth 25:100:151
+        Compressed > 25
+        Normal > 100 @elidable
+        Wide > 151
+    slnt -12:0:3
+        BackSlant > 3
+        Upright > 0 @elidable
+        Slant > -12
+    GRAD -250:0:150
+    XTSP -100:0:100
+
+# Hidden parametric axes (33)
+axes hidden
+    # Opaque - all glyphs
+    XOPQ 2:96:310
+    YOPQ 2:79:280
+    # Opaque - specific
+    XOUC 2:96:310
+    YOUC 2:79:280
+    XOLC 2:96:310
+    YOLC 2:79:280
+    XOFI 2:96:310
+    YOFI 2:79:280
+    YOPE 79:79:280
+    YOLB 79:132:280
+    # Transparent
+    XTRA 244:463:741
+    XTUC 244:463:741
+    XTLC 244:463:741
+    XTFI 244:463:741
+    XTUR 463:463:741
+    XTUD 463:463:741
+    # Vertical metrics
+    YTUC 528:728:778
+    YTLC 500:545:600
+    YTAS 700:768:850
+    YTDE -280:-208:-150
+    YTFI 650:743:850
+    YTOS 0:30:50
+    YTTL 0:25:50
+    # Other
+    XTTW 0:5:30
+    WDSP 0:246:1000
+    BARS 0:1000:1000
+    BDSZ -1:0:1.4
+    # Stems
+    STUI 2:92:736
+    STUO 2:92:722
+    STLI 2:32:400
+    STLO 2:32:400
+    # Rotation (for slant)
+    VANG 0:0:45
+    VROT 0:0:15
+
+# Variables for frequently repeated values
+avar2 vars
+    $YTAS = 768
+    $YTDE = -208
+    $YTFI = 743
+    $YTLC = 545
+    $YTOS = 30
+    $YTUC = 728
+    $YTTL = 25
+    $XTTW = 5
+    $WDSP = 235
+    $BARS = 1000
+    $STUI = 92
+    $STUO = 92
+    $STLI = 32
+    $STLO = 32
+    $YOPE = 79
+    $YOLB = 132
+    $BDSZ = 0
+    $VANG = 0
+    $VROT = 0
+    $XTSP = 0
+
+# Note: RobotoDelta uses 5-dimensional input (opsz, slnt, wght, wdth, GRAD)
+# with combinatorial mappings. Values below are simplified.
+
+# Matrix for narrow width combinations (wdth=25)
+avar2 matrix "wdth25_wght_variations"
+    outputs  XOPQ XOUC XOLC XOFI YOPQ YOUC YOLC YOFI XTRA XTUC XTLC XTFI
+
+    [opsz=-1, slnt=0, wght=100, wdth=25, GRAD=0]    50   50   50   50   48   48   48   48  451  451  500  451
+    [opsz=-1, slnt=0, wght=400, wdth=25, GRAD=0]   100  100  100  100   85   85   85   85  430  430  430  430
+    [opsz=-1, slnt=0, wght=1000, wdth=25, GRAD=0]  310  310  310  310  132  132  132  132  451  451  438  451
+
+# Matrix for normal width combinations (wdth=100)
+avar2 matrix "wdth100_wght_variations"
+    outputs  XOPQ XOUC XOLC XOFI YOPQ YOUC YOLC YOFI XTRA XTUC XTLC XTFI
+
+    [opsz=-1, slnt=0, wght=100, wdth=100, GRAD=0]   50   50   50   50   48   48   48   48  463  463  500  463
+    [opsz=-1, slnt=0, wght=400, wdth=100, GRAD=0]   96   96   96   96   79   79   79   79  463  463  463  463
+    [opsz=-1, slnt=0, wght=1000, wdth=100, GRAD=0] 170  170  170  170  132  132  132  132  463  463  463  463
+
+# Vertical axes overlay (same inputs, different outputs)
+avar2 matrix "vertical_metrics"
+    outputs  YTUC   YTLC   YTAS   YTDE   YTFI   YTOS YOPE  YOLB
+
+    [opsz=-1, slnt=0, wght=100, wdth=25, GRAD=0]   $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
+    [opsz=-1, slnt=0, wght=400, wdth=25, GRAD=0]   $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
+    [opsz=-1, slnt=0, wght=1000, wdth=25, GRAD=0]  $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
+    [opsz=-1, slnt=0, wght=100, wdth=100, GRAD=0]  $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
+    [opsz=-1, slnt=0, wght=400, wdth=100, GRAD=0]  $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
+    [opsz=-1, slnt=0, wght=1000, wdth=100, GRAD=0] $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
+
+# Other parametric axes overlay
+avar2 matrix "other_params"
+    outputs  YTTL  XTTW WDSP  BARS   BDSZ STUI  STUO  STLI  STLO  VANG  VROT  XTSP XTUR XTUD
+
+    [opsz=-1, slnt=0, wght=100, wdth=25, GRAD=0]   $YTTL $XTTW $WDSP $BARS $BDSZ $STUI $STUO $STLI $STLO $VANG $VROT $XTSP  463  463
+    [opsz=-1, slnt=0, wght=400, wdth=25, GRAD=0]   $YTTL $XTTW $WDSP $BARS $BDSZ $STUI $STUO $STLI $STLO $VANG $VROT $XTSP  463  463
+    [opsz=-1, slnt=0, wght=1000, wdth=25, GRAD=0]  $YTTL $XTTW $WDSP $BARS $BDSZ $STUI $STUO $STLI $STLO $VANG $VROT $XTSP  463  463
+
+# TODO: Add remaining 32 mappings covering all (opsz, slnt, wght, wdth, GRAD) combinations
