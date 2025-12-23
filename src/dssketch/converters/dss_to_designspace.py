@@ -20,6 +20,7 @@ from defcon import Font
 from fontTools.designspaceLib import (
     AxisDescriptor,
     AxisLabelDescriptor,
+    AxisMappingDescriptor,
     DesignSpaceDocument,
     DiscreteAxisDescriptor,
     InstanceDescriptor,
@@ -52,10 +53,21 @@ class DSSToDesignSpace:
         """Convert DSS document to DesignSpace document"""
         doc = DesignSpaceDocument()
 
-        # Convert axes
+        # Convert regular axes
         for dss_axis in dss_doc.axes:
             axis = self._convert_axis(dss_axis)
             doc.addAxis(axis)
+
+        # Convert hidden axes (avar2)
+        for dss_axis in dss_doc.hidden_axes:
+            axis = self._convert_hidden_axis(dss_axis)
+            doc.addAxis(axis)
+
+        # Convert avar2 mappings
+        if dss_doc.avar2_mappings:
+            for dss_mapping in dss_doc.avar2_mappings:
+                mapping = self._convert_avar2_mapping(dss_mapping, dss_doc)
+                doc.axisMappings.append(mapping)
 
         # Convert sources
         for source_index, dss_source in enumerate(dss_doc.sources, 1):
@@ -151,6 +163,96 @@ class DSSToDesignSpace:
                 axis.axisLabels.append(label_desc)
 
         return axis
+
+    def _convert_hidden_axis(self, dss_axis: DSSAxis) -> AxisDescriptor:
+        """Convert DSS hidden axis to DesignSpace axis with hidden=True
+
+        Hidden axes are used by avar2 for parametric font design.
+        They are not exposed to users but control internal font parameters.
+        """
+        axis = AxisDescriptor()
+        axis.name = dss_axis.name
+        axis.tag = dss_axis.tag
+        axis.minimum = dss_axis.minimum
+        axis.default = dss_axis.default
+        axis.maximum = dss_axis.maximum
+        axis.hidden = True  # Mark as hidden for avar2
+
+        # Hidden axes typically don't have label names or mappings
+        # but we set a basic labelNames for consistency
+        axis.labelNames = {"en": dss_axis.name}
+
+        return axis
+
+    def _convert_avar2_mapping(self, dss_mapping, dss_doc: DSSDocument) -> AxisMappingDescriptor:
+        """Convert DSS avar2 mapping to DesignSpace AxisMappingDescriptor
+
+        DSS format:
+            [opsz=Display, wght=Bold] > XOUC=84, YTUC=$YTUC
+
+        DesignSpace XML format:
+            <mapping description="name">
+                <input>
+                    <dimension name="Optical size" xvalue="144"/>
+                    <dimension name="Weight" xvalue="700"/>
+                </input>
+                <output>
+                    <dimension name="XOUC" xvalue="84"/>
+                    <dimension name="YTUC" xvalue="750"/>
+                </output>
+            </mapping>
+        """
+        mapping = AxisMappingDescriptor()
+
+        # Set description from mapping name
+        if dss_mapping.name:
+            mapping.description = dss_mapping.name
+
+        # Convert input conditions
+        # Input uses axis names/tags from DSS, need to resolve to DesignSpace axis names
+        mapping.inputLocation = {}
+        for axis_key, value in dss_mapping.input.items():
+            # Find the axis name in DesignSpace (handles tag -> name conversion)
+            axis_name = self._resolve_axis_name(axis_key, dss_doc)
+            mapping.inputLocation[axis_name] = value
+
+        # Convert output assignments
+        # Output typically uses hidden axis names (which are their tags)
+        mapping.outputLocation = {}
+        for axis_key, value in dss_mapping.output.items():
+            # For output, we also need to resolve the axis name
+            axis_name = self._resolve_axis_name(axis_key, dss_doc)
+            mapping.outputLocation[axis_name] = value
+
+        return mapping
+
+    def _resolve_axis_name(self, axis_key: str, dss_doc: DSSDocument) -> str:
+        """Resolve axis key (name or tag) to the axis name used in DesignSpace
+
+        Searches both regular and hidden axes.
+
+        Args:
+            axis_key: Axis name or tag from DSS (e.g., "opsz", "wght", "XOUC")
+            dss_doc: DSS document with axis definitions
+
+        Returns:
+            Resolved axis name for DesignSpace
+        """
+        # Search in regular axes
+        for axis in dss_doc.axes:
+            if axis.name == axis_key or axis.tag == axis_key:
+                return axis.name
+
+        # Search in hidden axes
+        for axis in dss_doc.hidden_axes:
+            if axis.name == axis_key or axis.tag == axis_key:
+                return axis.name
+
+        # If not found, return the key as-is (might be a custom axis)
+        DSSketchLogger.warning(
+            f"avar2: axis '{axis_key}' not found in axes definitions, using as-is"
+        )
+        return axis_key
 
     def _convert_source(
         self, dss_source: DSSSource, dss_doc: DSSDocument, source_index: int

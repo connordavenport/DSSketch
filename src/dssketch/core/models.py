@@ -70,12 +70,30 @@ class DSSRule:
 
 
 @dataclass
+class DSSAvar2Mapping:
+    """Represents an avar2 mapping (inter-axis dependency)
+
+    Example:
+        [opsz=Display, wght=Bold] > XOUC=84, YTUC=$YTUC
+
+    Attributes:
+        name: Optional description/name for the mapping
+        input: Dict of input axis conditions {axis_name: value}
+        output: Dict of output axis values {axis_name: value}
+    """
+    name: Optional[str]
+    input: Dict[str, float]  # axis_name -> input value
+    output: Dict[str, float]  # axis_name -> output value
+
+
+@dataclass
 class DSSDocument:
     """Complete DSS document structure"""
     family: str
     suffix: str = ""
     path: str = ""  # Path to sources directory (relative to .dssketch file or absolute)
     axes: List[DSSAxis] = field(default_factory=list)
+    hidden_axes: List[DSSAxis] = field(default_factory=list)  # avar2: hidden parametric axes
     sources: List[DSSSource] = field(default_factory=list)
     instances: List[DSSInstance] = field(default_factory=list)
     rules: List[DSSRule] = field(default_factory=list)
@@ -83,4 +101,7 @@ class DSSDocument:
     lib: Dict = field(default_factory=dict)
     instances_auto: bool = False  # Flag for automatic instance generation
     instances_skip: List[str] = field(default_factory=list)  # Instance combinations to skip (e.g., ["Bold Italic", "Light Italic"])
+    # avar2 support
+    avar2_vars: Dict[str, float] = field(default_factory=dict)  # Variable definitions: $name -> value
+    avar2_mappings: List[DSSAvar2Mapping] = field(default_factory=list)  # avar2 mappings
 

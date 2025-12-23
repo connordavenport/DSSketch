@@ -91,6 +91,13 @@ class DSSWriter:
                 lines.extend(self._format_axis(axis))
             lines.append("")
 
+        # Hidden axes section (avar2)
+        if dss_doc.hidden_axes:
+            lines.append("axes hidden")
+            for axis in dss_doc.hidden_axes:
+                lines.extend(self._format_hidden_axis(axis))
+            lines.append("")
+
         # Sources section
         if dss_doc.sources:
             # Add sources keyword with explicit axis order
@@ -102,6 +109,20 @@ class DSSWriter:
 
             for source in dss_doc.sources:
                 lines.append(self._format_source(source, dss_doc.axes))
+            lines.append("")
+
+        # avar2 vars section
+        if dss_doc.avar2_vars:
+            lines.append("avar2 vars")
+            for var_name, var_value in dss_doc.avar2_vars.items():
+                lines.append(f"    ${var_name} = {self._format_number(var_value)}")
+            lines.append("")
+
+        # avar2 mappings section
+        if dss_doc.avar2_mappings:
+            lines.append("avar2")
+            for mapping in dss_doc.avar2_mappings:
+                lines.extend(self._format_avar2_mapping(mapping, dss_doc))
             lines.append("")
 
         # Rules section
@@ -572,3 +593,97 @@ class DSSWriter:
         # For custom axes, match the display name format (uppercase)
         # This ensures consistency with _get_axis_display_name output
         return self._get_axis_display_name(axis_name, "")
+
+    # ============================================================
+    # avar2 FORMATTING METHODS
+    # ============================================================
+
+    def _format_hidden_axis(self, axis: DSSAxis) -> List[str]:
+        """Format hidden axis definition for avar2
+
+        Hidden axes use a simpler format than regular axes:
+        - No mappings/labels
+        - Just the range
+
+        Format: AXIS min:default:max
+        Example: XOUC 4:90:310
+        """
+        lines = []
+
+        # Hidden axes typically use their tag as the name
+        axis_name = axis.tag if axis.tag else axis.name
+
+        # Format range
+        range_str = f"{self._format_number(axis.minimum)}:{self._format_number(axis.default)}:{self._format_number(axis.maximum)}"
+
+        lines.append(f"    {axis_name} {range_str}")
+
+        return lines
+
+    def _format_avar2_mapping(self, mapping, dss_doc: DSSDocument) -> List[str]:
+        """Format avar2 mapping for output
+
+        Format: ["name"] [input] > output
+        Examples:
+            [opsz=144] > XOUC=84, YTUC=750
+            "display" [opsz=Display, wght=Bold] > XOUC=84, YTUC=$
+        """
+        lines = []
+
+        # Format input conditions
+        input_parts = []
+        for axis_name, value in mapping.input.items():
+            # Try to use label if available
+            label = self._get_avar2_label_for_value(axis_name, value, dss_doc)
+            if label:
+                input_parts.append(f"{axis_name}={label}")
+            else:
+                input_parts.append(f"{axis_name}={self._format_number(value)}")
+
+        input_str = f"[{', '.join(input_parts)}]"
+
+        # Format output assignments
+        output_parts = []
+        for axis_name, value in mapping.output.items():
+            # Check if we can use variable shorthand
+            if axis_name in dss_doc.avar2_vars and dss_doc.avar2_vars[axis_name] == value:
+                # Use shorthand: AXIS=$
+                output_parts.append(f"{axis_name}=$")
+            else:
+                output_parts.append(f"{axis_name}={self._format_number(value)}")
+
+        output_str = ", ".join(output_parts)
+
+        # Build the line
+        if mapping.name:
+            line = f'    "{mapping.name}" {input_str} > {output_str}'
+        else:
+            line = f"    {input_str} > {output_str}"
+
+        lines.append(line)
+
+        return lines
+
+    def _get_avar2_label_for_value(self, axis_name: str, value: float, dss_doc: DSSDocument) -> Optional[str]:
+        """Try to find a label for an avar2 input value
+
+        Searches both regular and hidden axes for matching labels.
+
+        Args:
+            axis_name: Axis name or tag
+            value: The value to find a label for
+            dss_doc: The DSS document with axis definitions
+
+        Returns:
+            Label name if found, None otherwise
+        """
+        # Search in regular axes
+        for axis in dss_doc.axes:
+            if axis.name == axis_name or axis.tag == axis_name:
+                for mapping in axis.mappings:
+                    if mapping.design_value == value:
+                        return mapping.label
+                break
+
+        # Hidden axes typically don't have labels
+        return None

@@ -729,6 +729,11 @@ class DSSValidator:
                 if axis.name not in source.location:
                     continue
 
+                # Skip validation for axes without mappings - this is a valid pattern
+                # (e.g., custom axes like ZROT that use numeric values directly)
+                if not axis.mappings:
+                    continue
+
                 source_coord = source.location[axis.name]
 
                 # Find mapping with matching design value

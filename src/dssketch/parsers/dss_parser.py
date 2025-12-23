@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List
 
 from ..core.mappings import Standards
-from ..core.models import DSSAxis, DSSAxisMapping, DSSDocument, DSSInstance, DSSSource, DSSRule
+from ..core.models import DSSAxis, DSSAxisMapping, DSSDocument, DSSInstance, DSSSource, DSSRule, DSSAvar2Mapping
 from ..utils.discrete import DiscreteAxisHandler
 from ..utils.dss_validator import DSSValidationError, DSSValidator
 from ..utils.logging import DSSketchLogger
@@ -181,6 +181,10 @@ class DSSParser:
                 self.validator.warnings.append("Path value is empty")
             self.document.path = path_value
 
+        # avar2 support: hidden axes (MUST be checked BEFORE "axes" since "axes hidden" starts with "axes ")
+        elif line == "axes hidden" or line.startswith("axes hidden "):
+            self.current_section = "axes_hidden"
+
         elif line == "axes" or line.startswith("axes "):
             self.current_section = "axes"
 
@@ -203,7 +207,40 @@ class DSSParser:
             self.current_section = "rules"
             self.in_skip_subsection = False  # Reset skip subsection flag
 
+        # avar2 support: variables (must be checked BEFORE "avar2" since "avar2 vars" starts with "avar2 ")
+        elif line == "avar2 vars" or line.startswith("avar2 vars "):
+            self.current_section = "avar2_vars"
+
+        # avar2 support: matrix format (must be checked BEFORE "avar2" since "avar2 matrix" starts with "avar2 ")
+        elif line.startswith("avar2 matrix"):
+            self.current_section = "avar2_matrix"
+            # Extract matrix name if present: avar2 matrix "name"
+            rest = line[len("avar2 matrix"):].strip()
+            if rest and '"' in rest:
+                self.current_avar2_matrix_name = self._extract_quoted_or_plain_value(rest)
+            elif rest:
+                self.current_avar2_matrix_name = rest  # Plain name without quotes
+            else:
+                self.current_avar2_matrix_name = None
+            self.current_avar2_matrix_outputs = None  # Will be set by "outputs" line
+
+        # avar2 support: linear format (must be after "avar2 matrix" and "avar2 vars")
+        elif line == "avar2" or (line.startswith("avar2 ") and "vars" not in line and "matrix" not in line):
+            self.current_section = "avar2"
+
         # Parse based on current section (highest priority)
+        elif self.current_section == "axes_hidden":
+            self._parse_hidden_axis_line(line)
+
+        elif self.current_section == "avar2_vars":
+            self._parse_avar2_var_line(line)
+
+        elif self.current_section == "avar2":
+            self._parse_avar2_line(line)
+
+        elif self.current_section == "avar2_matrix":
+            self._parse_avar2_matrix_line(line)
+
         elif self.current_section == "axes":
             self._parse_axis_line(line)
 
@@ -1053,3 +1090,425 @@ class DSSParser:
                             location={axis_name: design_val},
                         )
                         self.document.instances.append(instance)
+
+    # ============================================================
+    # avar2 PARSING METHODS
+    # ============================================================
+
+    def _parse_hidden_axis_line(self, line: str):
+        """Parse hidden axis definition lines for avar2
+
+        Format: AXIS min:default:max
+        Example: XOUC 4:90:310
+
+        Hidden axes are simpler than regular axes - no label mappings.
+        """
+        line = line.strip()
+        if not line:
+            return
+
+        parts = line.split()
+        if len(parts) < 2:
+            self.validator.warnings.append(f"Invalid hidden axis format: {line}")
+            return
+
+        # Get axis name/tag and range
+        axis_tag = parts[0]
+        range_part = parts[1]
+
+        # Parse range (min:default:max)
+        if ":" not in range_part:
+            self.validator.errors.append(f"Invalid hidden axis range format: {range_part}")
+            return
+
+        values = range_part.split(":")
+        try:
+            if len(values) == 2:
+                # min:max format (default = min)
+                minimum = float(values[0])
+                maximum = float(values[1])
+                default = minimum
+            elif len(values) == 3:
+                # min:default:max format
+                minimum = float(values[0])
+                default = float(values[1])
+                maximum = float(values[2])
+            else:
+                self.validator.errors.append(
+                    f"Invalid hidden axis range: {range_part}. Expected min:max or min:default:max"
+                )
+                return
+        except ValueError as e:
+            self.validator.errors.append(f"Non-numeric value in hidden axis range: {range_part}")
+            return
+
+        # Create hidden axis (no mappings)
+        hidden_axis = DSSAxis(
+            name=axis_tag,  # For hidden axes, name = tag typically
+            tag=axis_tag,
+            minimum=minimum,
+            default=default,
+            maximum=maximum,
+            mappings=[]
+        )
+
+        self.document.hidden_axes.append(hidden_axis)
+
+    def _parse_avar2_var_line(self, line: str):
+        """Parse avar2 variable definition line
+
+        Format: $name = value
+        Examples:
+            $YTUC = 750
+            $my_var = 123.5
+            $negative = -240
+        """
+        line = line.strip()
+        if not line:
+            return
+
+        # Check for variable definition format: $name = value
+        if not line.startswith("$"):
+            self.validator.warnings.append(f"avar2 vars: expected variable starting with $, got: {line}")
+            return
+
+        if "=" not in line:
+            self.validator.errors.append(f"avar2 vars: missing '=' in variable definition: {line}")
+            return
+
+        parts = line.split("=", 1)
+        var_name = parts[0].strip()  # Includes the $
+        var_value_str = parts[1].strip()
+
+        # Validate variable name
+        if not var_name.startswith("$"):
+            self.validator.errors.append(f"Variable name must start with $: {var_name}")
+            return
+
+        # Parse value
+        try:
+            var_value = float(var_value_str)
+        except ValueError:
+            self.validator.errors.append(f"Non-numeric variable value: {var_name} = {var_value_str}")
+            return
+
+        # Store variable (without the $ prefix in the key for easier lookup)
+        self.document.avar2_vars[var_name[1:]] = var_value
+
+    def _parse_avar2_line(self, line: str):
+        """Parse avar2 linear format mapping line
+
+        Formats:
+            [opsz=Display] > XOUC=84, YTUC=$
+            "name" [opsz=Display] > XOUC=84, YTUC=$
+            [opsz=Display] > {
+            XOUC=84, YTUC=$
+            }
+        """
+        line = line.strip()
+        if not line:
+            return
+
+        # Handle multi-line block continuation
+        if hasattr(self, '_avar2_multiline_block') and self._avar2_multiline_block:
+            # We're inside a multi-line { } block
+            if line == "}":
+                # End of block - finalize the mapping
+                self._finalize_avar2_mapping()
+                self._avar2_multiline_block = False
+                return
+            else:
+                # Accumulate output assignments
+                self._avar2_current_outputs.update(self._parse_avar2_outputs(line))
+                return
+
+        # Check for comment-only line
+        if line.startswith("#"):
+            return
+
+        # Parse mapping name if present
+        mapping_name = None
+        if line.startswith('"'):
+            # Extract name in quotes
+            end_quote = line.index('"', 1)
+            mapping_name = line[1:end_quote]
+            line = line[end_quote + 1:].strip()
+
+        # Must have [input]
+        if not line.startswith("["):
+            self.validator.warnings.append(f"avar2: expected [input], got: {line}")
+            return
+
+        # Find the input section
+        if "]" not in line:
+            self.validator.errors.append(f"avar2: missing closing ] in input: {line}")
+            return
+
+        bracket_end = line.index("]")
+        input_str = line[1:bracket_end]
+        rest = line[bracket_end + 1:].strip()
+
+        # Parse input conditions
+        input_conditions = self._parse_avar2_input(input_str)
+
+        # Check for > separator
+        if not rest.startswith(">"):
+            self.validator.errors.append(f"avar2: expected '>' after input conditions: {line}")
+            return
+
+        output_str = rest[1:].strip()
+
+        # Check for multi-line format
+        if output_str == "{" or output_str.endswith("{"):
+            # Start multi-line block
+            self._avar2_multiline_block = True
+            self._avar2_current_name = mapping_name
+            self._avar2_current_input = input_conditions
+            self._avar2_current_outputs = {}
+
+            # If there's content before {, parse it
+            if output_str != "{":
+                pre_brace = output_str[:-1].strip()
+                if pre_brace:
+                    self._avar2_current_outputs.update(self._parse_avar2_outputs(pre_brace))
+            return
+
+        # Single-line format
+        outputs = self._parse_avar2_outputs(output_str)
+
+        # Create mapping
+        mapping = DSSAvar2Mapping(
+            name=mapping_name,
+            input=input_conditions,
+            output=outputs
+        )
+        self.document.avar2_mappings.append(mapping)
+
+    def _parse_avar2_input(self, input_str: str) -> dict:
+        """Parse avar2 input conditions like 'opsz=Display, wght=Bold'
+
+        Returns dict of {axis_name: value}
+        """
+        result = {}
+
+        # Split by comma
+        parts = [p.strip() for p in input_str.split(",")]
+
+        for part in parts:
+            if "=" not in part:
+                self.validator.warnings.append(f"avar2 input: missing '=' in condition: {part}")
+                continue
+
+            axis_part, value_part = part.split("=", 1)
+            axis_name = axis_part.strip()
+            value_str = value_part.strip()
+
+            # Resolve value - could be label or numeric
+            value = self._resolve_avar2_value(value_str, axis_name)
+            result[axis_name] = value
+
+        return result
+
+    def _parse_avar2_outputs(self, output_str: str) -> dict:
+        """Parse avar2 output assignments like 'XOUC=84, YTUC=$'
+
+        Returns dict of {axis_name: value}
+        Handles:
+            - Explicit values: XOUC=84
+            - Variable references: YTUC=$YTUC
+            - Shorthand: YTUC=$  (means $YTUC)
+        """
+        result = {}
+
+        # Split by comma, handling potential multi-line content
+        parts = [p.strip() for p in output_str.split(",")]
+
+        for part in parts:
+            part = part.strip()
+            if not part or part.startswith("#"):
+                continue
+
+            if "=" not in part:
+                self.validator.warnings.append(f"avar2 output: missing '=' in assignment: {part}")
+                continue
+
+            axis_part, value_part = part.split("=", 1)
+            axis_name = axis_part.strip()
+            value_str = value_part.strip()
+
+            # Handle variable references
+            if value_str == "$":
+                # Shorthand: AXIS=$ means $AXIS
+                if axis_name in self.document.avar2_vars:
+                    value = self.document.avar2_vars[axis_name]
+                else:
+                    self.validator.errors.append(
+                        f"avar2: undefined variable ${axis_name} (shorthand $ for {axis_name})"
+                    )
+                    continue
+            elif value_str.startswith("$"):
+                # Explicit variable reference: $VAR_NAME
+                var_name = value_str[1:]
+                if var_name in self.document.avar2_vars:
+                    value = self.document.avar2_vars[var_name]
+                else:
+                    self.validator.errors.append(f"avar2: undefined variable ${var_name}")
+                    continue
+            else:
+                # Numeric value
+                try:
+                    value = float(value_str)
+                except ValueError:
+                    self.validator.errors.append(f"avar2: invalid numeric value: {value_str}")
+                    continue
+
+            result[axis_name] = value
+
+        return result
+
+    def _resolve_avar2_value(self, value_str: str, axis_name: str) -> float:
+        """Resolve avar2 value - could be numeric, label, or variable
+
+        Args:
+            value_str: The value string to resolve
+            axis_name: The axis this value applies to (for label lookup)
+
+        Returns:
+            Resolved numeric value
+        """
+        # Try numeric first
+        try:
+            return float(value_str)
+        except ValueError:
+            pass
+
+        # Try variable reference
+        if value_str.startswith("$"):
+            var_name = value_str[1:]
+            if var_name in self.document.avar2_vars:
+                return self.document.avar2_vars[var_name]
+            else:
+                self.validator.errors.append(f"avar2: undefined variable ${var_name}")
+                return 0.0
+
+        # Try label lookup from axis mappings
+        # Check both regular and hidden axes
+        all_axes = self.document.axes + self.document.hidden_axes
+        for axis in all_axes:
+            if axis.name == axis_name or axis.tag == axis_name:
+                for mapping in axis.mappings:
+                    if mapping.label == value_str:
+                        return mapping.design_value
+
+        # Label not found - it might be a typo or undefined label
+        self.validator.warnings.append(
+            f"avar2: unknown label '{value_str}' for axis '{axis_name}', using as-is"
+        )
+        return 0.0
+
+    def _finalize_avar2_mapping(self):
+        """Finalize a multi-line avar2 mapping block"""
+        if not hasattr(self, '_avar2_current_input'):
+            return
+
+        mapping = DSSAvar2Mapping(
+            name=self._avar2_current_name,
+            input=self._avar2_current_input,
+            output=self._avar2_current_outputs
+        )
+        self.document.avar2_mappings.append(mapping)
+
+        # Clean up state
+        del self._avar2_current_name
+        del self._avar2_current_input
+        del self._avar2_current_outputs
+
+    def _parse_avar2_matrix_line(self, line: str):
+        """Parse avar2 matrix format line
+
+        Format:
+            outputs AXIS1 AXIS2 AXIS3 ...   (column header)
+            [input] value1 value2 value3 ... (data row)
+        """
+        line = line.strip()
+        if not line or line.startswith("#"):
+            return
+
+        # Check for outputs header
+        if line.startswith("outputs"):
+            # Parse column axis names
+            output_axes = line[7:].split()  # Skip "outputs "
+            self.current_avar2_matrix_outputs = output_axes
+            return
+
+        # Must be a data row with [input] values...
+        if not line.startswith("["):
+            self.validator.warnings.append(f"avar2 matrix: expected [input] or outputs, got: {line}")
+            return
+
+        if "]" not in line:
+            self.validator.errors.append(f"avar2 matrix: missing closing ] in: {line}")
+            return
+
+        # Check we have output columns defined
+        if not hasattr(self, 'current_avar2_matrix_outputs') or not self.current_avar2_matrix_outputs:
+            self.validator.errors.append(
+                "avar2 matrix: data row before 'outputs' header. Define outputs first."
+            )
+            return
+
+        bracket_end = line.index("]")
+        input_str = line[1:bracket_end]
+        values_str = line[bracket_end + 1:].strip()
+
+        # Parse input conditions
+        input_conditions = self._parse_avar2_input(input_str)
+
+        # Parse values (whitespace separated)
+        value_strings = values_str.split()
+
+        if len(value_strings) != len(self.current_avar2_matrix_outputs):
+            self.validator.errors.append(
+                f"avar2 matrix: expected {len(self.current_avar2_matrix_outputs)} values, "
+                f"got {len(value_strings)}: {line}"
+            )
+            return
+
+        # Create output dict from column values
+        outputs = {}
+        for i, axis_name in enumerate(self.current_avar2_matrix_outputs):
+            value_str = value_strings[i]
+
+            # Handle variable references
+            if value_str == "$":
+                # Shorthand for $AXIS
+                if axis_name in self.document.avar2_vars:
+                    outputs[axis_name] = self.document.avar2_vars[axis_name]
+                else:
+                    self.validator.errors.append(
+                        f"avar2 matrix: undefined variable ${axis_name}"
+                    )
+                    continue
+            elif value_str.startswith("$"):
+                var_name = value_str[1:]
+                if var_name in self.document.avar2_vars:
+                    outputs[axis_name] = self.document.avar2_vars[var_name]
+                else:
+                    self.validator.errors.append(f"avar2 matrix: undefined variable ${var_name}")
+                    continue
+            else:
+                try:
+                    outputs[axis_name] = float(value_str)
+                except ValueError:
+                    self.validator.errors.append(
+                        f"avar2 matrix: invalid numeric value '{value_str}' for {axis_name}"
+                    )
+                    continue
+
+        # Create mapping
+        mapping = DSSAvar2Mapping(
+            name=self.current_avar2_matrix_name,  # From matrix header
+            input=input_conditions,
+            output=outputs
+        )
+        self.document.avar2_mappings.append(mapping)

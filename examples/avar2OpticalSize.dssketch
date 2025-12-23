@@ -8,6 +8,9 @@ axes
     wdth 50:100:150
     opsz 6:16:144
 
+sources
+    TestFont-Default.ufo [400, 100, 16] @base
+
 # At small optical sizes (6pt): make bolder and wider for legibility
 # At large optical sizes (144pt): make lighter and narrower for elegance
 avar2

@@ -10,6 +10,9 @@ axes hidden
     AAAA 0:0:90
     BBBB 0:0:90
 
+sources
+    TestFont-Default.ufo [0] @base
+
 # User rotates ZROT, which drives both A and B axes
 # This is the "HOI" (Higher Order Interpolation) use case
 avar2

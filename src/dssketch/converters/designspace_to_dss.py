@@ -16,7 +16,7 @@ from fontTools.designspaceLib import (
     SourceDescriptor,
 )
 
-from ..core.models import DSSAxis, DSSAxisMapping, DSSDocument, DSSInstance, DSSSource, DSSRule
+from ..core.models import DSSAxis, DSSAxisMapping, DSSDocument, DSSInstance, DSSSource, DSSRule, DSSAvar2Mapping
 
 
 class DesignSpaceToDSS:
@@ -51,10 +51,25 @@ class DesignSpaceToDSS:
         if sources_path:
             dss_doc.path = sources_path
 
-        # Convert axes
+        # Convert axes - separate regular and hidden axes
         for axis in ds_doc.axes:
             dss_axis = self._convert_axis(axis)
-            dss_doc.axes.append(dss_axis)
+            # Check if this is a hidden axis (avar2)
+            if getattr(axis, 'hidden', False):
+                dss_doc.hidden_axes.append(dss_axis)
+            else:
+                dss_doc.axes.append(dss_axis)
+
+        # Convert avar2 mappings
+        if hasattr(ds_doc, 'axisMappings') and ds_doc.axisMappings:
+            # First, convert all mappings
+            for mapping in ds_doc.axisMappings:
+                dss_mapping = self._convert_avar2_mapping(mapping, ds_doc)
+                dss_doc.avar2_mappings.append(dss_mapping)
+
+            # Then analyze CONVERTED mappings to generate variables for repeated values
+            # (uses axis tags, which enables the $AXIS shorthand)
+            dss_doc.avar2_vars = self._extract_avar2_variables_from_dss(dss_doc.avar2_mappings)
 
         # Convert sources
         for source in ds_doc.sources:
@@ -281,3 +296,140 @@ class DesignSpaceToDSS:
                 )
 
         return DSSRule(name=rule.name or "rule", substitutions=substitutions, conditions=conditions)
+
+    # ============================================================
+    # avar2 CONVERSION METHODS
+    # ============================================================
+
+    def _convert_avar2_mapping(self, mapping, ds_doc: DesignSpaceDocument) -> DSSAvar2Mapping:
+        """Convert DesignSpace AxisMappingDescriptor to DSS avar2 mapping
+
+        DesignSpace format:
+            <mapping description="name">
+                <input><dimension name="Optical size" xvalue="144"/></input>
+                <output><dimension name="XOUC" xvalue="84"/></output>
+            </mapping>
+
+        DSS format:
+            "name" [opsz=144] > XOUC=84
+        """
+        # Get mapping name/description
+        name = getattr(mapping, 'description', None)
+
+        # Convert input location (axis name -> value)
+        input_location = {}
+        if hasattr(mapping, 'inputLocation') and mapping.inputLocation:
+            for axis_name, value in mapping.inputLocation.items():
+                # Convert to axis tag if possible for shorter output
+                axis_tag = self._get_axis_tag(axis_name, ds_doc)
+                input_location[axis_tag] = value
+
+        # Convert output location (axis name -> value)
+        output_location = {}
+        if hasattr(mapping, 'outputLocation') and mapping.outputLocation:
+            for axis_name, value in mapping.outputLocation.items():
+                # Convert to axis tag if possible
+                axis_tag = self._get_axis_tag(axis_name, ds_doc)
+                output_location[axis_tag] = value
+
+        return DSSAvar2Mapping(
+            name=name,
+            input=input_location,
+            output=output_location
+        )
+
+    def _get_axis_tag(self, axis_name: str, ds_doc: DesignSpaceDocument) -> str:
+        """Get axis tag from axis name
+
+        Returns the axis tag if found, otherwise returns the original name.
+        """
+        for axis in ds_doc.axes:
+            if axis.name == axis_name:
+                return axis.tag
+        return axis_name
+
+    def _extract_avar2_variables_from_dss(self, dss_mappings) -> dict:
+        """Extract repeated values from CONVERTED DSS avar2 mappings to create variables
+
+        If a value appears 3+ times across all output locations,
+        create a variable for it named after the axis TAG.
+
+        Example:
+            If wght=600 appears in 4 mappings, create $wght = 600
+            This allows using the shorthand wght=$ in output
+
+        Args:
+            dss_mappings: List of DSSAvar2Mapping objects (already converted)
+
+        Returns:
+            Dict of variable_name (axis tag) -> value (without $ prefix)
+        """
+        # Count value occurrences per axis
+        axis_value_counts = {}  # {axis_tag: {value: count}}
+
+        for mapping in dss_mappings:
+            for axis_tag, value in mapping.output.items():
+                if axis_tag not in axis_value_counts:
+                    axis_value_counts[axis_tag] = {}
+                if value not in axis_value_counts[axis_tag]:
+                    axis_value_counts[axis_tag][value] = 0
+                axis_value_counts[axis_tag][value] += 1
+
+        # Create variables for values that appear 3+ times
+        variables = {}
+        for axis_tag, value_counts in axis_value_counts.items():
+            # Find the value with the most occurrences
+            max_count = 0
+            max_value = None
+            for value, count in value_counts.items():
+                if count > max_count:
+                    max_count = count
+                    max_value = value
+
+            if max_count >= 3 and max_value is not None:
+                # Use axis tag as variable name (allows $AXIS shorthand)
+                variables[axis_tag] = max_value
+
+        return variables
+
+    def _extract_avar2_variables(self, axis_mappings) -> dict:
+        """Extract repeated values from avar2 mappings to create variables
+
+        If a value appears 3+ times across all output locations,
+        create a variable for it named after the axis TAG (not name).
+
+        Example:
+            If wght=600 appears in 10 mappings, create $wght = 600
+            This allows using the shorthand wght=$ in output
+
+        Returns:
+            Dict of variable_name (axis tag) -> value (without $ prefix)
+        """
+        # Count value occurrences per axis (using output keys which are axis tags)
+        axis_value_counts = {}  # {axis_tag: {value: count}}
+
+        for mapping in axis_mappings:
+            if hasattr(mapping, 'outputLocation') and mapping.outputLocation:
+                for axis_tag, value in mapping.outputLocation.items():
+                    if axis_tag not in axis_value_counts:
+                        axis_value_counts[axis_tag] = {}
+                    if value not in axis_value_counts[axis_tag]:
+                        axis_value_counts[axis_tag][value] = 0
+                    axis_value_counts[axis_tag][value] += 1
+
+        # Create variables for values that appear 3+ times
+        variables = {}
+        for axis_tag, value_counts in axis_value_counts.items():
+            # Find the value with the most occurrences
+            max_count = 0
+            max_value = None
+            for value, count in value_counts.items():
+                if count > max_count:
+                    max_count = count
+                    max_value = value
+
+            if max_count >= 3 and max_value is not None:
+                # Use axis tag as variable name (allows $AXIS shorthand)
+                variables[axis_tag] = max_value
+
+        return variables
