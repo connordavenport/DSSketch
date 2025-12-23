@@ -1,5 +1,5 @@
 # RobotoDelta-Roman avar2 example
-# Simplified version for syntax validation
+# Demonstrates linear format with variable shorthand
 # Full version has 38 mappings and 39 axes
 
 family RobotoDelta
@@ -88,43 +88,76 @@ avar2 vars
     $VANG = 0
     $VROT = 0
     $XTSP = 0
+    $XTUR = 463
+    $XTUD = 463
 
+# Linear format - all outputs for each mapping in one place
 # Note: RobotoDelta uses 5-dimensional input (opsz, slnt, wght, wdth, GRAD)
-# with combinatorial mappings. Values below are simplified.
+# Note: Original file uses normalized coords (-1=min, 0=default, 1=max)
+#       We convert to absolute values for clarity
+avar2
+    # === wdth=Compressed (25) combinations ===
 
-# Matrix for narrow width combinations (wdth=25)
-avar2 matrix "wdth25_wght_variations"
-    outputs  XOPQ XOUC XOLC XOFI YOPQ YOUC YOLC YOFI XTRA XTUC XTLC XTFI
+    [opsz=8, slnt=0, wght=Thin, wdth=Compressed, GRAD=0] > {
+        VANG=$, VROT=$,
+        XOPQ=50, XOFI=50, XOUC=50, XOLC=50,
+        XTRA=451, XTUC=451, XTLC=500, XTFI=451, XTSP=$,
+        YOPE=$, YOLB=$, YOPQ=48, YOFI=48, YOUC=48, YOLC=48,
+        BDSZ=$, YTAS=$, YTDE=$, YTFI=$, YTLC=$, YTOS=$, YTUC=$,
+        YTTL=$, XTTW=$, XTUR=$, WDSP=$, BARS=$, XTUD=$,
+        STUI=$, STUO=$, STLI=$, STLO=$
+    }
 
-    [opsz=-1, slnt=0, wght=100, wdth=25, GRAD=0]    50   50   50   50   48   48   48   48  451  451  500  451
-    [opsz=-1, slnt=0, wght=400, wdth=25, GRAD=0]   100  100  100  100   85   85   85   85  430  430  430  430
-    [opsz=-1, slnt=0, wght=1000, wdth=25, GRAD=0]  310  310  310  310  132  132  132  132  451  451  438  451
+    [opsz=8, slnt=0, wght=Regular, wdth=Compressed, GRAD=0] > {
+        VANG=$, VROT=$,
+        XOPQ=100, XOFI=100, XOUC=100, XOLC=100,
+        XTRA=430, XTUC=430, XTLC=430, XTFI=430, XTSP=$,
+        YOPE=$, YOLB=$, YOPQ=85, YOFI=85, YOUC=85, YOLC=85,
+        BDSZ=$, YTAS=$, YTDE=$, YTFI=$, YTLC=$, YTOS=$, YTUC=$,
+        YTTL=$, XTTW=$, XTUR=$, WDSP=$, BARS=$, XTUD=$,
+        STUI=$, STUO=$, STLI=$, STLO=$
+    }
 
-# Matrix for normal width combinations (wdth=100)
-avar2 matrix "wdth100_wght_variations"
-    outputs  XOPQ XOUC XOLC XOFI YOPQ YOUC YOLC YOFI XTRA XTUC XTLC XTFI
+    [opsz=8, slnt=0, wght=Black, wdth=Compressed, GRAD=0] > {
+        VANG=$, VROT=$,
+        XOPQ=310, XOFI=310, XOUC=310, XOLC=310,
+        XTRA=451, XTUC=451, XTLC=438, XTFI=451, XTSP=$,
+        YOPE=$, YOLB=$, YOPQ=132, YOFI=132, YOUC=132, YOLC=132,
+        BDSZ=$, YTAS=$, YTDE=$, YTFI=$, YTLC=$, YTOS=$, YTUC=$,
+        YTTL=$, XTTW=$, XTUR=$, WDSP=$, BARS=$, XTUD=$,
+        STUI=$, STUO=$, STLI=$, STLO=$
+    }
 
-    [opsz=-1, slnt=0, wght=100, wdth=100, GRAD=0]   50   50   50   50   48   48   48   48  463  463  500  463
-    [opsz=-1, slnt=0, wght=400, wdth=100, GRAD=0]   96   96   96   96   79   79   79   79  463  463  463  463
-    [opsz=-1, slnt=0, wght=1000, wdth=100, GRAD=0] 170  170  170  170  132  132  132  132  463  463  463  463
+    # === wdth=Normal (100) combinations ===
 
-# Vertical axes overlay (same inputs, different outputs)
-avar2 matrix "vertical_metrics"
-    outputs  YTUC   YTLC   YTAS   YTDE   YTFI   YTOS YOPE  YOLB
+    [opsz=8, slnt=0, wght=Thin, wdth=Normal, GRAD=0] > {
+        VANG=$, VROT=$,
+        XOPQ=50, XOFI=50, XOUC=50, XOLC=50,
+        XTRA=463, XTUC=463, XTLC=500, XTFI=463, XTSP=$,
+        YOPE=$, YOLB=$, YOPQ=48, YOFI=48, YOUC=48, YOLC=48,
+        BDSZ=$, YTAS=$, YTDE=$, YTFI=$, YTLC=$, YTOS=$, YTUC=$,
+        YTTL=$, XTTW=$, XTUR=$, WDSP=$, BARS=$, XTUD=$,
+        STUI=$, STUO=$, STLI=$, STLO=$
+    }
 
-    [opsz=-1, slnt=0, wght=100, wdth=25, GRAD=0]   $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
-    [opsz=-1, slnt=0, wght=400, wdth=25, GRAD=0]   $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
-    [opsz=-1, slnt=0, wght=1000, wdth=25, GRAD=0]  $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
-    [opsz=-1, slnt=0, wght=100, wdth=100, GRAD=0]  $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
-    [opsz=-1, slnt=0, wght=400, wdth=100, GRAD=0]  $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
-    [opsz=-1, slnt=0, wght=1000, wdth=100, GRAD=0] $YTUC  $YTLC  $YTAS  $YTDE  $YTFI  $YTOS $YOPE $YOLB
+    [opsz=8, slnt=0, wght=Regular, wdth=Normal, GRAD=0] > {
+        VANG=$, VROT=$,
+        XOPQ=96, XOFI=96, XOUC=96, XOLC=96,
+        XTRA=463, XTUC=463, XTLC=463, XTFI=463, XTSP=$,
+        YOPE=$, YOLB=$, YOPQ=79, YOFI=79, YOUC=79, YOLC=79,
+        BDSZ=$, YTAS=$, YTDE=$, YTFI=$, YTLC=$, YTOS=$, YTUC=$,
+        YTTL=$, XTTW=$, XTUR=$, WDSP=$, BARS=$, XTUD=$,
+        STUI=$, STUO=$, STLI=$, STLO=$
+    }
 
-# Other parametric axes overlay
-avar2 matrix "other_params"
-    outputs  YTTL  XTTW WDSP  BARS   BDSZ STUI  STUO  STLI  STLO  VANG  VROT  XTSP XTUR XTUD
-
-    [opsz=-1, slnt=0, wght=100, wdth=25, GRAD=0]   $YTTL $XTTW $WDSP $BARS $BDSZ $STUI $STUO $STLI $STLO $VANG $VROT $XTSP  463  463
-    [opsz=-1, slnt=0, wght=400, wdth=25, GRAD=0]   $YTTL $XTTW $WDSP $BARS $BDSZ $STUI $STUO $STLI $STLO $VANG $VROT $XTSP  463  463
-    [opsz=-1, slnt=0, wght=1000, wdth=25, GRAD=0]  $YTTL $XTTW $WDSP $BARS $BDSZ $STUI $STUO $STLI $STLO $VANG $VROT $XTSP  463  463
+    [opsz=8, slnt=0, wght=Black, wdth=Normal, GRAD=0] > {
+        VANG=$, VROT=$,
+        XOPQ=170, XOFI=170, XOUC=170, XOLC=170,
+        XTRA=463, XTUC=463, XTLC=463, XTFI=463, XTSP=$,
+        YOPE=$, YOLB=$, YOPQ=132, YOFI=132, YOUC=132, YOLC=132,
+        BDSZ=$, YTAS=$, YTDE=$, YTFI=$, YTLC=$, YTOS=$, YTUC=$,
+        YTTL=$, XTTW=$, XTUR=$, WDSP=$, BARS=$, XTUD=$,
+        STUI=$, STUO=$, STLI=$, STLO=$
+    }
 
 # TODO: Add remaining 32 mappings covering all (opsz, slnt, wght, wdth, GRAD) combinations

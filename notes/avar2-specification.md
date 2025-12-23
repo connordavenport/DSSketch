@@ -1,4 +1,4 @@
-# DSSketch avar2 Specification (Draft)
+# DSSketch avar2 Specification (Draft v0.2)
 
 This document describes the proposed syntax for representing avar2 (axis variations version 2) mappings in the DSSketch format, with full bidirectional conversion support to/from DesignSpace XML.
 
@@ -87,23 +87,31 @@ avar2 vars
 
 ---
 
-### 3. Simple Mappings (`avar2`)
+### 3. Linear Mappings (`avar2`) — Primary Format
 
-For mappings with few output axes:
+Linear format is the **recommended human-readable format**. Each mapping shows all output axes in one place:
 
 ```dssketch
 avar2
-    # With description name
-    "display_basic" [opsz=Display] > XOUC=84, XOLC=78, YTUC=$YTUC
+    # Single-line format for few outputs
+    "display_basic" [opsz=Display] > XOUC=84, XOLC=78, YTUC=$
 
     # Without name
     [opsz=Display, wdth=Extended] > XOUC=86, XOLC=80, XTUC=540
 
-    # Multi-line format for many outputs
-    "display_full" [opsz=Display] > {
+    # Multi-line format for many outputs (recommended for parametric fonts)
+    "opsz144" [opsz=Display] > {
+        # Horizontal opaque
         XOUC=84, XOLC=78, XOFI=80,
-        XTUC=348, XTUR=470, XTUD=410,
-        YTUC=$YTUC, YTDE=$YTDE, YHAU=$YHAU
+        # Horizontal transparent
+        XTUC=348, XTUR=470, XTUD=410, XTLC=224, XTLR=308,
+        # Vertical metrics
+        YTUC=$, YTLC=471, YTAS=756, YTDE=$, YTFI=773,
+        YOUC=16, YOLC=14, YOFI=14,
+        # Serifs
+        XSHU=82, XSHL=61, XSHF=109,
+        YSHU=12, YSHL=10, YSHF=12,
+        YHAU=$, YHAL=$, YHAF=$
     }
 
     # Label-based input coordinates
@@ -116,6 +124,7 @@ avar2
 **Syntax:**
 ```
 ["name"] [input_conditions] > output_assignments
+["name"] [input_conditions] > { multi-line output_assignments }
 ```
 
 **Input conditions:**
@@ -125,15 +134,44 @@ avar2
 - Supports both numeric values and label names from axis mappings
 
 **Output assignments:**
-- Format: `AXIS=value` or `AXIS=$variable`
+- Format: `AXIS=value` or `AXIS=$variable` or `AXIS=$` (shorthand)
 - Multiple assignments separated by `, `
-- Use `{ }` for multi-line format
+- Use `{ }` for multi-line format with comments
+
+### Variable Reference Shorthand
+
+When variable name matches axis name, use `$` shorthand:
+
+| Syntax | Meaning | Example |
+|--------|---------|---------|
+| `AXIS=123` | Explicit numeric value | `XOUC=84` |
+| `AXIS=$` | Shorthand for `$AXIS` variable | `YTUC=$` → uses `$YTUC` |
+| `AXIS=$OTHER` | Explicit variable reference | `YTUC=$YTUC_text` |
+
+**Example:**
+```dssketch
+avar2 vars
+    $YTUC = 750
+    $YTDE = -240
+    $YHAU = 18
+
+avar2
+    [opsz=Display] > {
+        YTUC=$,                    # shorthand → $YTUC = 750
+        YTDE=$,                    # shorthand → $YTDE = -240
+        YHAU=$,                    # shorthand → $YHAU = 18
+        YTLC=471,                  # explicit value
+        YTAS=$YTAS_display         # explicit variable reference
+    }
+```
+
+This significantly reduces verbosity for parametric fonts where variable names typically match axis names.
 
 ---
 
-### 4. Matrix Format (`avar2 matrix`)
+### 4. Matrix Format (`avar2 matrix`) — Machine Format
 
-For mappings with many output axes (10+), matrix format is more compact:
+Matrix format is **optional**, intended for machine-generated output or when comparing values across mappings is important. For human editing, prefer linear format.
 
 ```dssketch
 avar2 matrix "parametric_horizontal"
@@ -159,49 +197,60 @@ avar2 matrix ["name"]
 - `outputs` line defines column order (whitespace-separated axis tags)
 - Each data row: `[input]` followed by whitespace-separated values
 - Values aligned by position with `outputs` columns
-- Values can be numbers or `$variables`
+- Values can be numbers, `$variables`, or `$` shorthand
 - Whitespace between values is flexible (spaces/tabs for alignment)
 
-**With variables:**
-```dssketch
-avar2 matrix "with_constants"
-    outputs  XOUC XOLC YTUC  YTDE  YHAU
+**When to use matrix format:**
+- Machine-generated conversions from DesignSpace
+- Comparing numeric values across multiple input conditions
+- Exporting for external tools
 
-    [opsz=Display]                  84   78  $YTUC $YTDE $YHAU
-    [opsz=Display, wdth=Extended]   86   80  $YTUC $YTDE $YHAU
-    [opsz=Text]                     90   85    541  -310     0
-```
+**When to use linear format:**
+- Human editing and maintenance
+- Understanding mapping structure
+- Adding comments and documentation
 
 ---
 
-### 5. Multiple Sections and Overlay
+### 5. Multiple Sections
 
-Multiple `avar2` and `avar2 matrix` sections can coexist and overlay:
+Multiple `avar2` sections can coexist. For clarity, prefer **single linear section** with all mappings rather than overlay:
 
 ```dssketch
-# Base matrix - horizontal parametric axes
-avar2 matrix "horizontal"
-    outputs  XOUC XOLC XOFI XTUC XTUR
+avar2 vars
+    $YTUC = 750
+    $YTDE = -240
+    $YHAU = 18
+    $YHAL = 18
+    $YHAF = 18
 
-    [opsz=Display]   84   78   80  348  470
-    [opsz=Text]      90   85   88  400  561
-
-# Additional matrix - vertical axes (overlays on same inputs)
-avar2 matrix "vertical"
-    outputs  YTUC YTLC YTAS YTDE
-
-    [opsz=Display]  $YTUC  471  756  $YTDE
-    [opsz=Text]     $YTUC  511  767  $YTDE
-
-# Simple mappings - additional axes
 avar2
-    [opsz=Display] > YHAU=$YHAU, YHAL=$YHAL, YHAF=$YHAF
-    [opsz=Text] > YHAU=$YHAU, YHAL=$YHAL, YHAF=$YHAF
+    "opsz144" [opsz=Display] > {
+        # All axes for this mapping in one place
+        XOUC=84, XOLC=78, XOFI=80,
+        XTUC=348, XTUR=470, XTUD=410,
+        YTUC=$, YTLC=471, YTAS=756, YTDE=$,
+        YHAU=$, YHAL=$, YHAF=$
+    }
+
+    "opsz144_wdth125" [opsz=Display, wdth=Extended] > {
+        XOUC=86, XOLC=80, XOFI=79,
+        XTUC=540, XTUR=702, XTUD=600,
+        YTUC=$, YTLC=470, YTAS=756, YTDE=$,
+        YHAU=$, YHAL=$, YHAF=$
+    }
+
+    "opsz8" [opsz=Text] > {
+        XOUC=90, XOLC=85, XOFI=88,
+        XTUC=400, XTUR=561, XTUD=410,
+        YTUC=$, YTLC=511, YTAS=767, YTDE=$,
+        YHAU=$, YHAL=$, YHAF=$
+    }
 ```
 
-**Overlay rules:**
-1. First section is base
-2. Subsequent sections add new output axes to existing inputs
+**Overlay rules (when multiple sections define same input):**
+1. Sections processed in order
+2. Later definitions add or override output axes
 3. If same output axis appears multiple times for same input: **last value wins** + warning in log
 4. All sections merged into single `<mapping>` elements in DesignSpace output
 
@@ -393,5 +442,11 @@ instances auto
 ---
 
 ## Version History
+
+- **v0.2 (2024-12):**
+  - Linear format as primary human-readable format
+  - Matrix format demoted to optional machine format
+  - Added `AXIS=$` shorthand for same-name variable references
+  - Removed overlay complexity in favor of single-section clarity
 
 - **v0.1 (2024-12):** Initial draft specification based on AmstelvarA2 and RobotoDelta analysis.

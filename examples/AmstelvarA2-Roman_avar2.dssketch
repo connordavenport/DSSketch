@@ -1,5 +1,5 @@
 # AmstelvarA2-Roman avar2 example
-# Simplified version for syntax validation
+# Demonstrates linear format with variable shorthand
 # Full version has 29 mappings and 67 axes
 
 family Amstelvar
@@ -101,62 +101,131 @@ axes hidden
     BARS 0:0:683
 
 # Variables for frequently repeated values
+# Using axis names allows shorthand: YTUC=$ instead of YTUC=$YTUC
 avar2 vars
     $YTUC = 750
     $YTDE = -240
     $YHAU = 18
     $YHAL = 18
     $YHAF = 18
-    $YTAS_display = 756
-    $YTFI_display = 773
 
-# Matrix format for opsz=Display combinations
-# Horizontal parametric axes
-avar2 matrix "opsz144_horizontal"
-    outputs  XOUC XOLC XOFI XTUC XTUR XTUD XTLC XTLR XTLD XTFI
-
-    "opsz144"                 [opsz=Display]                         84   78   80  348  470  410  224  308  254  320
-    "opsz144_wdth125"         [opsz=Display, wdth=Extended]          86   80   79  540  702  600  414  502  418  490
-    "opsz144_wdth50"          [opsz=Display, wdth=Condensed]         78   71   72  168  214  242  106  140  153  148
-    "opsz144_wght100"         [opsz=Display, wght=Thin]              34   34   30  418  571  433  288  402  290  418
-    "opsz144_wght1000"        [opsz=Display, wght=Black]            244  234  237  198  251  306  151  175  214  225
-    "opsz144_wght1000_wdth125"[opsz=Display, wght=Black, wdth=Ext]  246  237  236  390  483  504  341  369  391  294
-    "opsz144_wght1000_wdth50" [opsz=Display, wght=Black, wdth=Cnd]  239  228  229   72   66  170   46   49  104   44
-    "opsz144_wght100_wdth125" [opsz=Display, wght=Thin, wdth=Ext]    35   35   31  598  788  622  465  593  439  582
-    "opsz144_wght100_wdth50"  [opsz=Display, wght=Thin, wdth=Cnd]    30   31   28  210  316  255  135  200  162  222
-
-# Vertical parametric axes (overlay on same inputs)
-avar2 matrix "opsz144_vertical"
-    outputs  YTUC  YTLC  YTAS        YTDE   YTFI        YOUC YOLC YOFI
-
-    [opsz=Display]                        $YTUC  471  $YTAS_display  $YTDE  $YTFI_display   16   14   14
-    [opsz=Display, wdth=Extended]         $YTUC  470  $YTAS_display  $YTDE  $YTFI_display   16   14   20
-    [opsz=Display, wdth=Condensed]        $YTUC  468  $YTAS_display   -230  $YTFI_display   19   14   16
-    [opsz=Display, wght=Thin]             $YTUC  471            748   -230            768   13    9    7
-    [opsz=Display, wght=Black]            $YTUC  496  $YTAS_display   -230  778             34   36   26
-    [opsz=Display, wght=Black, wdth=Ext]  $YTUC  496  $YTAS_display   -230  778             35   35   32
-    [opsz=Display, wght=Black, wdth=Cnd]  $YTUC  495  $YTAS_display   -230  778             30   35   28
-    [opsz=Display, wght=Thin, wdth=Ext]   $YTUC  470            748   -230            769   13    9   10
-    [opsz=Display, wght=Thin, wdth=Cnd]   $YTUC  465            748   -230            758   12    8    8
-
-# Serifs and other axes (simplified - just showing pattern)
-avar2 matrix "opsz144_serifs"
-    outputs  XSHU XSHL XSHF YSHU YSHL YSHF YHAU  YHAL  YHAF
-
-    [opsz=Display]                         82   61  109   12   10   12  $YHAU $YHAL $YHAF
-    [opsz=Display, wdth=Extended]         102   86  169   12   12   12  $YHAU $YHAL $YHAF
-    [opsz=Display, wdth=Condensed]         58   37   84   10   10   10  $YHAU $YHAL $YHAF
-    [opsz=Display, wght=Thin]              92   71  142    9    6   12  $YHAU    14    10
-    [opsz=Display, wght=Black]             68   61  104   28   30   27  $YHAU $YHAL $YHAF
-    [opsz=Display, wght=Black, wdth=Ext]   88   86  164   28   32   27  $YHAU $YHAL $YHAF
-    [opsz=Display, wght=Black, wdth=Cnd]   46   35   92   27   27   25  $YHAU $YHAL $YHAF
-    [opsz=Display, wght=Thin, wdth=Ext]   114   98  204    9    9   12  $YHAU    14    10
-    [opsz=Display, wght=Thin, wdth=Cnd]    56   40   92    6    4    9  $YHAU    14     8
-
-# Simple mappings for XTSP axis (standalone)
+# Linear format - all outputs for each mapping in one place
 avar2
+    # === opsz=Display (144) combinations ===
+
+    "opsz144" [opsz=Display] > {
+        # Horizontal opaque
+        XOUC=84, XOLC=78, XOFI=80,
+        # Horizontal transparent
+        XTUC=348, XTUR=470, XTUD=410, XTLC=224, XTLR=308, XTLD=254, XTFI=320,
+        # Vertical
+        YTUC=$, YTLC=471, YTAS=756, YTDE=$, YTFI=773,
+        YOUC=16, YOLC=14, YOFI=14,
+        # Serifs
+        XSHU=82, XSHL=61, XSHF=109,
+        YSHU=12, YSHL=10, YSHF=12,
+        XSVU=14, XSVL=14, XSVF=14,
+        YSVU=153, YSVL=84, YSVF=91,
+        # Counters and curves
+        XUCS=113, XUCR=32, XUCD=-23,
+        XLCS=89, XLCR=24, XLCD=-14,
+        XFIR=28, XDOT=116, YTOS=10,
+        # Other
+        XOUA=58, XOLA=50, YOUA=13, YOLA=13,
+        WDSP=267, XQLC=72, XQUC=106, XQFI=75,
+        YQUC=194, YQLC=116, YQFI=214,
+        XVAU=54, XVAL=36, XVAF=30,
+        YHAU=$, YHAL=$, YHAF=$,
+        XTUA=251, XTLA=206, YTJD=-7
+    }
+
+    "opsz144_wdth125" [opsz=Display, wdth=Extended] > {
+        XOUC=86, XOLC=80, XOFI=79,
+        XTUC=540, XTUR=702, XTUD=600, XTLC=414, XTLR=502, XTLD=418, XTFI=490,
+        YTUC=$, YTLC=470, YTAS=756, YTDE=$, YTFI=773,
+        YOUC=16, YOLC=14, YOFI=20,
+        XSHU=102, XSHL=86, XSHF=169,
+        YSHU=12, YSHL=12, YSHF=12,
+        XSVU=24, XSVL=20, XSVF=14,
+        YSVU=153, YSVL=84, YSVF=86,
+        XUCS=157, XUCR=41, XUCD=3,
+        XLCS=136, XLCR=37, XLCD=-4,
+        XFIR=37, XDOT=116, YTOS=10,
+        XOUA=60, XOLA=62, YOUA=10, YOLA=11,
+        WDSP=267, XQLC=118, XQUC=160, XQFI=110,
+        YQUC=186, YQLC=116, YQFI=218,
+        XVAU=54, XVAL=44, XVAF=30,
+        YHAU=$, YHAL=$, YHAF=$,
+        XTUA=311, XTLA=295, YTJD=-7
+    }
+
+    "opsz144_wdth50" [opsz=Display, wdth=Condensed] > {
+        XOUC=78, XOLC=71, XOFI=72,
+        XTUC=168, XTUR=214, XTUD=242, XTLC=106, XTLR=140, XTLD=153, XTFI=148,
+        YTUC=$, YTLC=468, YTAS=756, YTDE=-230, YTFI=773,
+        YOUC=19, YOLC=14, YOFI=16,
+        XSHU=58, XSHL=37, XSHF=84,
+        YSHU=10, YSHL=10, YSHF=10,
+        XSVU=14, XSVL=15, XSVF=10,
+        YSVU=143, YSVL=79, YSVF=76,
+        XUCS=65, XUCR=24, XUCD=-4,
+        XLCS=50, XLCR=17, XLCD=-9,
+        XFIR=24, XDOT=95, YTOS=10,
+        XOUA=52, XOLA=50, YOUA=7, YOLA=5,
+        WDSP=100, XQLC=36, XQUC=42, XQFI=40,
+        YQUC=193, YQLC=121, YQFI=214,
+        XVAU=49, XVAL=32, XVAF=30,
+        YHAU=$, YHAL=$, YHAF=$,
+        XTUA=233, XTLA=166, YTJD=-7
+    }
+
+    "opsz144_wght100" [opsz=Display, wght=Thin] > {
+        XOUC=34, XOLC=34, XOFI=30,
+        XTUC=418, XTUR=571, XTUD=433, XTLC=288, XTLR=402, XTLD=290, XTFI=418,
+        YTUC=$, YTLC=471, YTAS=748, YTDE=-230, YTFI=768,
+        YOUC=13, YOLC=9, YOFI=7,
+        XSHU=92, XSHL=71, XSHF=142,
+        YSHU=9, YSHL=6, YSHF=12,
+        XSVU=6, XSVL=11, XSVF=7,
+        YSVU=152, YSVL=112, YSVF=112,
+        XUCS=126, XUCR=35, XUCD=-26,
+        XLCS=104, XLCR=26, XLCD=-28,
+        XFIR=32, XDOT=64, YTOS=10,
+        XOUA=40, XOLA=32, YOUA=5, YOLA=6,
+        WDSP=256, XQLC=90, XQUC=128, XQFI=97,
+        YQUC=186, YQLC=110, YQFI=168,
+        XVAU=52, XVAL=23, XVAF=24,
+        YHAU=$, YHAL=14, YHAF=10,
+        XTUA=240, XTLA=240, YTJD=-5
+    }
+
+    "opsz144_wght1000" [opsz=Display, wght=Black] > {
+        XOUC=244, XOLC=234, XOFI=237,
+        XTUC=198, XTUR=251, XTUD=306, XTLC=151, XTLR=175, XTLD=214, XTFI=225,
+        YTUC=$, YTLC=496, YTAS=756, YTDE=-230, YTFI=778,
+        YOUC=34, YOLC=36, YOFI=26,
+        XSHU=68, XSHL=61, XSHF=104,
+        YSHU=28, YSHL=30, YSHF=27,
+        XSVU=32, XSVL=38, XSVF=12,
+        YSVU=131, YSVL=78, YSVF=71,
+        XUCS=78, XUCR=25, XUCD=0,
+        XLCS=68, XLCR=18, XLCD=-9,
+        XFIR=20, XDOT=218, YTOS=13,
+        XOUA=128, XOLA=130, YOUA=25, YOLA=22,
+        WDSP=198, XQLC=42, XQUC=66, XQFI=42,
+        YQUC=238, YQLC=138, YQFI=268,
+        XVAU=56, XVAL=53, XVAF=28,
+        YHAU=$, YHAL=$, YHAF=$,
+        XTUA=271, XTLA=264, YTJD=-3
+    }
+
+    # === XTSP axis mappings ===
+
     "XTSP-100" [XTSP=-100] > WDSP=100
     "XTSP100"  [XTSP=100]  > WDSP=600
 
-# TODO: Add remaining mappings for opsz=8 combinations
-# TODO: Add wght/wdth only mappings (without opsz)
+# TODO: Add remaining mappings:
+# - opsz144_wght1000_wdth125, opsz144_wght1000_wdth50
+# - opsz144_wght100_wdth125, opsz144_wght100_wdth50
+# - opsz8 combinations (9 mappings)
+# - wdth-only, wght-only combinations (8 mappings)
