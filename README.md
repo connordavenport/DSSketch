@@ -614,6 +614,31 @@ instances auto  # Generates: "Thin", "Regular", "Black", "Italic Thin", "Italic"
    - `Italic Regular` → `Italic` (Regular is elidable)
 3. **Final instances**: `Thin`, `Regular`, `Black`, `Italic`, `Italic Thin`, `Italic Black`
 
+#### Fallback for Axes Without Labels
+
+When axes have no mappings defined (only `min:def:max`), DSSketch automatically generates instances from the axis range values:
+
+```dssketch
+family QuickPrototype
+
+axes
+    wght 100:400:900    # No labels defined
+    wdth 75:100:125     # No labels defined
+
+instances auto
+# Generates 9 instances (3 × 3):
+# wght100 wdth75, wght100 wdth100, wght100 wdth125
+# wght400 wdth75, wght400 wdth100, wght400 wdth125
+# wght900 wdth75, wght900 wdth100, wght900 wdth125
+```
+
+**How fallback works:**
+- Uses axis `minimum`, `default`, and `maximum` values as instance points
+- Instance names use `tag+value` format (e.g., `wght400 wdth100`)
+- Useful for quick prototyping without defining full axis mappings
+
+This also works with avar2 fonts, where additional points from avar2 input mappings are included.
+
 ### Instance Skip Functionality
 
 When using `instances auto`, you can exclude specific instance combinations with the `skip` subsection. This is useful for removing impractical or unwanted style combinations:
@@ -875,6 +900,134 @@ instances auto
 ```
 
 **Result**: Automatic generation of all meaningful style combinations with proper PostScript names, file paths, and style linking based on axes order.
+
+### Disabling Instance Generation (`instances off`)
+
+When you want to completely disable automatic instance generation (e.g., for avar2 fonts where instances are not needed or should be managed externally):
+
+```dssketch
+family MyFont
+
+axes
+    wght 100:400:900
+    wdth 75:100:125
+
+instances off
+```
+
+This produces a DesignSpace file with zero instances, which is useful for:
+- **avar2 variable fonts** where instances may be generated differently
+- **Build pipelines** that generate instances externally
+- **Testing** axis configurations without instance overhead
+
+### avar2 Support (OpenType 1.9)
+
+DSSketch provides comprehensive support for avar2 (axis variations version 2), enabling non-linear axis mappings and inter-axis dependencies. This is essential for sophisticated variable fonts like parametric fonts.
+
+#### Basic avar2 Syntax
+
+```dssketch
+family MyParametricFont
+
+axes
+    wght 1:400:1000 "Weight"
+    wdth 50:100:150 "Width"
+    opsz 6:16:144 "Optical size"
+
+# Hidden axes (parametric, not exposed to users)
+hidden_axes
+    XOUC 0:100:200
+    XOLC 0:100:200
+    YTUC 400:500:600
+
+avar2
+    [wght=100] > wght=300
+    [wght=400] > wght=400
+    [wght=700] > wght=600
+    [wdth=50] > wdth=50, XOUC=80
+    [wdth=100] > wdth=100, XOUC=100
+    [opsz=144] > XOUC=84, XOLC=78, YTUC=500
+
+instances off
+```
+
+#### avar2 Variables
+
+Define reusable variables for complex parametric fonts:
+
+```dssketch
+avar2 vars
+    $XOUC = 91
+    $YTUC = 725
+    $YTLC = 511
+
+avar2
+    [wght=400] > XOUC=$XOUC, YTUC=$YTUC, YTLC=$YTLC
+    [wght=700] > XOUC=120, YTUC=$, YTLC=$  # $ means "use default"
+```
+
+#### avar2 Matrix Format (Default)
+
+For complex fonts with many hidden axes, the matrix format provides a compact, tabular view:
+
+```dssketch
+avar2 matrix
+    outputs                   XOUC  XOLC  XOFI  XTUC  YOUC  YOLC
+    [opsz=144]               84    78    80    348   16    14
+    [opsz=144, wdth=125]     86    80    79    540   16    14
+    [opsz=144, wdth=50]      78    71    72    168   19    14
+    [wght=100]               40    42    38    470   31    30
+    [wght=1000]              250   242   245   250   81    79
+```
+
+**Matrix format features:**
+- Column headers show output axis names
+- Each row shows input conditions and output values
+- `$` means "use default value for this axis"
+- `-` means "no value for this axis in this mapping"
+- Automatic column alignment for readability
+
+#### CLI Options for avar2 Format
+
+```bash
+# Use matrix format (default)
+dssketch font.designspace --matrix
+
+# Use linear format (one mapping per line)
+dssketch font.designspace --linear
+```
+
+**Linear format example:**
+```dssketch
+avar2
+    [wght=100] > wght=300
+    [wght=400] > wght=400
+    [opsz=144] > XOUC=84, XOLC=78, YTUC=500
+```
+
+#### Instance Generation with avar2
+
+When using `instances auto` with avar2 fonts that have axes without labels, DSSketch automatically generates instance points from:
+
+1. Axis min, default, and max values
+2. Unique input points from avar2 mappings
+
+```dssketch
+axes
+    wght 1:400:1000  # No labels defined
+    opsz 6:16:144    # No labels defined
+
+avar2
+    [wght=100] > wght=300
+    [wght=700] > wght=600
+    [opsz=144] > XOUC=84
+
+instances auto
+# Generates instances at: wght=[1, 100, 400, 700, 1000] × opsz=[6, 16, 144]
+# Instance names: wght1 opsz6, wght100 opsz6, wght400 opsz16, etc.
+```
+
+**Hidden axes are excluded** from instance generation - only user-facing axes contribute to instance combinations.
 
 ## Architecture & API
 

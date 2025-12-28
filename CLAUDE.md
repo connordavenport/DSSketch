@@ -376,6 +376,29 @@ instances auto  # instances follow axes section order
 
         Bold Italic  # skip this specific combination
         Thin Italic  # skip another combination
+
+instances off  # completely disable instance generation (useful for avar2 fonts)
+
+# avar2 support (OpenType 1.9 - inter-axis dependencies)
+hidden_axes  # parametric axes not exposed to users
+    XOUC 0:100:200
+    XOLC 0:100:200
+    YTUC 400:500:600
+
+avar2 vars  # reusable variable definitions
+    $XOUC = 91
+    $YTUC = 725
+
+avar2  # linear format
+    [wght=100] > wght=300
+    [wght=400] > wght=400, XOUC=$XOUC
+    [opsz=144] > XOUC=84, XOLC=78, YTUC=$  # $ = use default value
+
+avar2 matrix  # tabular format (default for output)
+    outputs              XOUC  XOLC  YTUC
+    [opsz=144]          84    78    $
+    [opsz=144, wdth=50] 78    71    500
+    [wght=100]          40    42    -     # - = no value for this axis
 ```
 
 ### Label-Based Syntax
@@ -639,6 +662,14 @@ Rules define glyph substitutions based on axis conditions. The syntax is:
 - Generates proper PostScript names and file paths
 - Integration: `dss_to_designspace.py:67` calls `createInstances()` when `instances_auto=True`
 - **Custom axis ordering**: Change axes order in DSS to control instance name generation
+
+**Fallback for Axes Without Labels:**
+- When axes have no mappings (only `min:def:max`), instances are generated from range values
+- Uses axis `minimum`, `default`, and `maximum` as instance points
+- Instance names use `tag+value` format (e.g., `wght400 wdth100`)
+- Works for both simple fonts and avar2 fonts (avar2 adds input points from mappings)
+- **Example**: `wght 100:400:900` without labels → instances at wght100, wght400, wght900
+- Useful for quick prototyping without defining full axis mappings
 
 **Instance Skip Functionality (`instances auto skip`):**
 - **Purpose**: Exclude specific instance combinations from automatic generation
@@ -1087,6 +1118,92 @@ def _validate_content(self, document: DSSDocument):
 - `dss_validator.py:validate_document()` merges parsing_errors with validation errors
 - Critical errors always cause immediate failure regardless of mode
 
+### Implementation Notes for avar2 Support (2025-12)
+
+**avar2 (axis variations v2)** is an OpenType 1.9 feature enabling non-linear axis mappings and inter-axis dependencies. Essential for parametric fonts like AmstelvarA2.
+
+**Code Locations:**
+- Parser: `src/dssketch/parsers/dss_parser.py` - sections `avar2`, `avar2 vars`, `avar2 matrix`
+- Writer: `src/dssketch/writers/dss_writer.py` - `_format_avar2_as_matrix()`, `_format_avar2_as_linear()`
+- Models: `src/dssketch/core/models.py` - `DSSAvar2Mapping`, `DSSDocument.avar2_mappings`
+- Instances: `src/dssketch/core/instances.py` - `_extract_avar2_points_for_axis()`
+
+**Key Features:**
+
+1. **Linear Format** - Traditional one-mapping-per-line:
+   ```
+   avar2
+       [wght=100] > wght=300, XOUC=80
+       [opsz=144] > XOUC=84, XOLC=78
+   ```
+
+2. **Matrix Format** (default) - Tabular for complex fonts:
+   ```
+   avar2 matrix
+       outputs           XOUC  XOLC  YTUC
+       [opsz=144]       84    78    $
+       [wght=100]       40    42    -
+   ```
+   - `$` = use default value (from `avar2 vars` or axis default)
+   - `-` = no value for this axis in this mapping
+
+3. **Variables** (`avar2 vars`):
+   ```
+   avar2 vars
+       $XOUC = 91
+       $YTUC = 725
+   ```
+
+4. **Hidden Axes** - Parametric axes not exposed to users:
+   ```
+   hidden_axes
+       XOUC 0:100:200
+       YTUC 400:500:600
+   ```
+
+**Instance Generation Fallback:**
+
+When axes have no labels (common in avar2 fonts), instance generation uses:
+1. Axis min, default, max values
+2. Unique input points from avar2 mappings
+
+```python
+def _generate_fallback_mapping(axisDescriptor, dss_doc=None) -> dict:
+    """Generate mapping from min:def:max + avar2 points."""
+    points = {axis.minimum, axis.default, axis.maximum}
+    if dss_doc:
+        points |= _extract_avar2_points_for_axis(dss_doc, axis.tag)
+    return {_format_axis_value_label(tag, v): v for v in sorted(points)}
+```
+
+Instance names: `wght400 opsz16` format (tag + value).
+
+**Hidden axes excluded** from instance generation - only user-facing axes contribute.
+
+**CLI Options:**
+- `--matrix` - Use matrix format (default)
+- `--linear` - Use linear format
+
+### Implementation Notes for instances off (2025-12)
+
+**Purpose:** Completely disable instance generation in DesignSpace output.
+
+**Code Locations:**
+- Model: `src/dssketch/core/models.py` - `DSSDocument.instances_off: bool`
+- Parser: `src/dssketch/parsers/dss_parser.py:203` - parses `instances off`
+- Converter: `src/dssketch/converters/dss_to_designspace.py:78` - skips instance generation
+- Writer: `src/dssketch/writers/dss_writer.py:150` - outputs `instances off`
+
+**Usage:**
+```dssketch
+instances off
+```
+
+**Use cases:**
+- avar2 fonts where instances are not needed
+- Build pipelines that generate instances externally
+- Testing axis configurations without instance overhead
+
 ### Module Reference
 
 Complete reference of all modules in the DSSketch project. **IMPORTANT: Always check this reference before implementing new functionality to avoid code duplication.**
@@ -1109,6 +1226,11 @@ Complete reference of all modules in the DSSketch project. **IMPORTANT: Always c
 - Main CLI entry point after package installation
 - Handles argument parsing and conversion workflows
 - Integrates with UFO validation and logging
+- **CLI options**:
+  - `--matrix` - Use matrix format for avar2 output (default)
+  - `--linear` - Use linear format for avar2 output
+  - `--no-validation` - Skip UFO validation
+  - `-o, --output` - Specify output file path
 - **Purpose**: User-facing CLI for DSSketch conversions
 
 **`data_cli.py`** - Data file management CLI
@@ -1151,6 +1273,7 @@ Complete reference of all modules in the DSSketch project. **IMPORTANT: Always c
 - Label-based coordinate output (`use_label_coordinates=True`)
 - Label-based range output (`use_label_ranges=True`)
 - Path optimization and common directory detection
+- **avar2 format**: `avar2_format="matrix"` (default) or `"linear"`
 - **Purpose**: Convert structured data model to DSSketch text format
 - **Key Methods**:
   - `write(dss_doc)` - Generate DSSketch string
@@ -1183,11 +1306,21 @@ Complete reference of all modules in the DSSketch project. **IMPORTANT: Always c
 
 **`models.py`** - Data models for DSSketch
 - `DSSDocument` - Complete DSSketch document structure
+  - `instances_auto: bool` - Flag for automatic instance generation
+  - `instances_off: bool` - Flag to disable instance generation entirely
+  - `instances_skip: List[str]` - Instance combinations to skip
+  - `hidden_axes: List[DSSAxis]` - avar2 hidden parametric axes
+  - `avar2_vars: Dict[str, float]` - avar2 variable definitions ($name -> value)
+  - `avar2_mappings: List[DSSAvar2Mapping]` - avar2 inter-axis mappings
 - `DSSAxis` - Axis definition with mappings
 - `DSSAxisMapping` - Single axis mapping point (user/design values, label, elidable flag)
 - `DSSSource` - Source file definition with location
 - `DSSInstance` - Instance definition
 - `DSSRule` - Substitution rule with conditions
+- `DSSAvar2Mapping` - avar2 mapping (input conditions -> output values)
+  - `name: Optional[str]` - Optional description
+  - `input: Dict[str, float]` - Input axis conditions
+  - `output: Dict[str, float]` - Output axis values
 - **Purpose**: Type-safe data structures for DSSketch document representation
 
 **`mappings.py`** - Standard weight/width mappings
@@ -1206,8 +1339,11 @@ Complete reference of all modules in the DSSketch project. **IMPORTANT: Always c
 **`instances.py`** - Automatic instance generation
 - `createInstances(dssource, defaultFolder, skipFilter)` - Generate all instance combinations
 - `sortAxisOrder(ds)` - Order axes according to DSS document or DEFAULT_AXIS_ORDER
+  - **Hidden axes excluded**: Only user-facing axes included in instance generation
 - `getElidabledNames(ds, axisOrder, ignoreAxis)` - Find elidable labels for name cleanup
 - `getInstancesMapping(ds, axisName)` - Extract axis value mappings
+  - **Fallback for unlabeled axes**: When axis has no labels, generates from min:def:max + avar2 input points
+  - Instance names use format `tag+value` (e.g., `wght400 opsz16`)
 - `createInstance(location, familyName, styleName, defaultFolder)` - Create single instance
 - Uses `itertools.product()` for combinatorial generation
 - **Purpose**: Sophisticated automatic instance generation from axis combinations
