@@ -988,66 +988,127 @@ DSSketch provides comprehensive support for avar2 (axis variations version 2), e
 
 #### Basic avar2 Syntax
 
-```dssketch
-family MyParametricFont
+**Mapping structure: `[input] > output`**
 
+- **Input**: `[axis=value]` — the coordinate where user requests a value
+- **Output**: `axis=value` — what the font internally uses instead
+
+**Example 1: Non-linear weight curve** (from `examples/avar2.dssketch`)
+
+```dssketch
+axes
+    wght 1:400:1000 "Weight"
+    wdth 50:100:150 "Width"
+
+avar2 matrix
+    outputs      wght  wdth
+    [wght=100]   300   -      # user asks wght=100 → font uses wght=300
+    [wght=400]   $     -      # user asks wght=400 → font uses default (400)
+    [wght=700]   600   -      # user asks wght=700 → font uses wght=600
+    [wdth=75]    -     90     # user asks wdth=75  → font uses wdth=90
+    [wdth=100]   -     $      # user asks wdth=100 → font uses default (100)
+```
+
+Here `-` means "no change for this axis", `$` means "use axis default".
+
+**Example 2: Optical size affects weight and width** (from `examples/avar2OpticalSize.dssketch`)
+
+```dssketch
 axes
     wght 1:400:1000 "Weight"
     wdth 50:100:150 "Width"
     opsz 6:16:144 "Optical size"
 
-# Hidden axes (parametric, not exposed to users)
-axes hidden
-    XOUC 0:100:200
-    XOLC 0:100:200
-    YTUC 400:500:600
-
-avar2
-    [wght=100] > wght=300
-    [wght=400] > wght=400
-    [wght=700] > wght=600
-    [wdth=50] > wdth=50, XOUC=80
-    [wdth=100] > wdth=100, XOUC=100
-    [opsz=144] > XOUC=84, XOLC=78, YTUC=500
-
-instances off
+avar2 matrix
+    outputs                         wght  wdth
+    [opsz=6, wght=400, wdth=100]    600   125   # small text: heavier, wider
+    [opsz=144, wght=400, wdth=100]  200   75    # large display: lighter, narrower
 ```
 
-#### avar2 Variables
+At small sizes (opsz=6), text needs more weight to be readable. At large sizes (opsz=144), less weight looks better.
 
-Define reusable variables for complex parametric fonts:
+**Example 3: Hidden parametric axes** (from `examples/avar2QuadraticRotation.dssketch`)
+
+```dssketch
+axes
+    ZROT 0:0:90 "Rotation"
+
+axes hidden
+    AAAA 0:0:90
+    BBBB 0:0:90
+
+avar2 matrix
+    outputs    AAAA  BBBB
+    [ZROT=0]   $     $      # at rotation=0: use defaults
+    [ZROT=90]  90    90     # at rotation=90: set both to 90
+```
+
+User controls `ZROT`, font internally adjusts hidden axes `AAAA` and `BBBB`.
+
+**Sources for avar2 fonts** — use `AXIS=value` format (from `examples/avar2-RobotoDelta-Roman.dssketch`):
+
+```dssketch
+sources
+    Roboto-Regular opsz=0 @base
+    Roboto-GRAD-250 opsz=0, GRAD=-250
+    Roboto-GRAD150 opsz=0, GRAD=150
+    Roboto-VROT13 opsz=0, VANG=13, VROT=13
+    Roboto-XTUC741-wght100 opsz=1, wght=100, wdth=151, XTUC=741
+```
+
+Format: `SourceName AXIS=value, AXIS=value, ...` — list only axes that differ from defaults. Values are **design-space** coordinates (same as in DesignSpace XML `xvalue`).
+
+**Variables (`avar2 vars`)** — define reusable values (from `examples/avar2Fences.dssketch`)
 
 ```dssketch
 avar2 vars
-    $XOUC = 91
-    $YTUC = 725
-    $YTLC = 511
+    $wght1 = 600           # define variable
 
-avar2
-    [wght=400] > XOUC=$XOUC, YTUC=$YTUC, YTLC=$YTLC
-    [wght=700] > XOUC=120, YTUC=$, YTLC=$  # $ = use axis default
+avar2 matrix
+    outputs                  wght    wdth
+    [wght=1000, wdth=50]     $wght1  50     # use variable (= 600)
+    [wght=1000, wdth=90]     $wght1  90     # same value reused
+    [wght=600, wdth=50]      $wght1  50
+    [wght=600, wdth=90]      $wght1  90
 ```
 
-#### avar2 Matrix Format (Default)
+Variables start with `$`, useful when same value appears many times.
 
-For complex fonts with many hidden axes, the matrix format provides a compact, tabular view:
+#### Linear vs Matrix Format
 
+**Linear format** — one mapping per line:
+```dssketch
+avar2
+    [wght=100] > wght=300
+    [wght=700] > wght=600
+
+    # With optional description name:
+    "opsz144_wght1000" [opsz=144, wght=1000] > XOUC=244, XOLC=234
+```
+
+**Matrix format** — tabular, better for multiple output axes:
 ```dssketch
 avar2 matrix
-    outputs                   XOUC  XOLC  XOFI  XTUC  YOUC  YOLC
-    [opsz=144]               84    78    80    348   16    14
-    [opsz=144, wdth=125]     86    80    79    540   16    14
-    [opsz=144, wdth=50]      78    71    72    168   19    14
-    [wght=100]               40    42    38    470   31    30
-    [wght=1000]              250   242   245   250   81    79
+    outputs      wght  wdth
+    [wght=100]   300   -
+    [wght=700]   600   -
 ```
 
-**Matrix format features:**
-- Column headers show output axis names
-- Each row shows input conditions and output values
-- `$` = use axis default value (e.g., `XOUC=$` means use XOUC's default from axis definition)
-- `-` = no output for this axis in this mapping
-- Automatic column alignment for readability
+**Complex matrix** (from `examples/avar2-RobotoDelta-Roman.dssketch`):
+```dssketch
+avar2 matrix
+    outputs                                       XOPQ  XOUC  XOLC  XTUC  YOPQ  YOUC
+    [opsz=-1, wght=100, wdth=25, slnt=0, GRAD=0]  50    50    50    451   48    48
+    [opsz=-1, wght=400, wdth=25, slnt=0, GRAD=0]  100   100   100   430   85    85
+    [opsz=-1, wght=1000, wdth=25, slnt=0, GRAD=0] 150   150   150   400   105   105
+    [opsz=0, wght=100, wdth=100, slnt=0, GRAD=0]  47    47    47    516   44    44
+    [opsz=0, wght=400, wdth=100, slnt=0]          $     $     $     $     $     $
+    [opsz=1, wght=100, wdth=25, slnt=0, GRAD=0]   2     2     2     278   2     2
+```
+
+Each row: `[input conditions]` → values for all output columns. `$` = axis default, `-` = no output.
+
+Both formats produce identical results. Matrix is default for output, linear is easier to read for simple cases.
 
 #### CLI Options for avar2
 
@@ -1063,17 +1124,17 @@ dssketch font.designspace --vars 2    # threshold=2 (more variables)
 dssketch font.designspace --vars 5    # threshold=5 (fewer variables)
 ```
 
-**Variable generation**: Values appearing N+ times become variables (`$axis1`, `$axis2`, etc.)
+**Variable generation**: Values appearing N+ times become variables (`$var1`, `$var2`, etc.)
 
-**Linear format example:**
+#### Instances with avar2
+
+For avar2 fonts, `instances off` is often the better choice:
+
 ```dssketch
-avar2
-    [wght=100] > wght=300
-    [wght=400] > wght=400
-    [opsz=144] > XOUC=84, XOLC=78, YTUC=500
+instances off   # recommended for most avar2 fonts
 ```
 
-#### Instance Generation with avar2
+**Why?** avar2 fonts often have complex axis interactions where automatic instance generation produces too many or inappropriate combinations. Use `instances auto` only when you understand which combinations make sense.
 
 When using `instances auto` with avar2 fonts that have axes without labels, DSSketch automatically generates instance points from:
 
@@ -1088,7 +1149,7 @@ axes
 avar2
     [wght=100] > wght=300
     [wght=700] > wght=600
-    [opsz=144] > XOUC=84
+    [opsz=144] > wght=200
 
 instances auto
 # Generates instances at: wght=[1, 100, 400, 700, 1000] × opsz=[6, 16, 144]
