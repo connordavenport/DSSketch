@@ -17,7 +17,13 @@ from .utils.logging import DSSketchLogger
 from .writers.dss_writer import DSSWriter
 
 
-def convert_to_dss(designspace: DesignSpaceDocument, dss_path: str, optimize: bool = True) -> str:
+def convert_to_dss(
+    designspace: DesignSpaceDocument,
+    dss_path: str,
+    optimize: bool = True,
+    vars_threshold: int = 3,
+    avar2_format: str = "matrix",
+) -> str:
     """
     Convert a DesignSpace object to DSSketch format and save to file.
 
@@ -25,6 +31,9 @@ def convert_to_dss(designspace: DesignSpaceDocument, dss_path: str, optimize: bo
         designspace: DesignSpaceDocument object to convert
         dss_path: Path where the .dssketch file should be saved
         optimize: Whether to optimize the output (default True)
+        vars_threshold: Minimum frequency for auto-generating avar2 variables.
+                       0 = disabled, 3 = default (values appearing 3+ times)
+        avar2_format: Format for avar2 output - "matrix" (default) or "linear"
 
     Returns:
         Path to the created DSS file
@@ -37,15 +46,21 @@ def convert_to_dss(designspace: DesignSpaceDocument, dss_path: str, optimize: bo
         ds = DesignSpaceDocument()
         ds.read("MyFont.designspace")
 
-        # Convert to DSSketch
+        # Convert to DSSketch (default settings)
         dssketch.convert_to_dss(ds, "MyFont.dssketch")
+
+        # Convert without variables
+        dssketch.convert_to_dss(ds, "MyFont.dssketch", vars_threshold=0)
+
+        # Convert with linear avar2 format
+        dssketch.convert_to_dss(ds, "MyFont.dssketch", avar2_format="linear")
     """
     # Convert DesignSpace to DSS document
-    converter = DesignSpaceToDSS()
+    converter = DesignSpaceToDSS(vars_threshold=vars_threshold)
     dss_doc = converter.convert(designspace)
 
     # Write DSS document to file
-    writer = DSSWriter(optimize=optimize)
+    writer = DSSWriter(optimize=optimize, avar2_format=avar2_format)
     dss_content = writer.write(dss_doc)
 
     dss_file = Path(dss_path)
@@ -138,7 +153,10 @@ def convert_dss_string_to_designspace(
 
 
 def convert_designspace_to_dss_string(
-    designspace: DesignSpaceDocument, optimize: bool = True
+    designspace: DesignSpaceDocument,
+    optimize: bool = True,
+    vars_threshold: int = 3,
+    avar2_format: str = "matrix",
 ) -> str:
     """
     Convert a DesignSpace object to DSSketch format string.
@@ -146,6 +164,9 @@ def convert_designspace_to_dss_string(
     Args:
         designspace: DesignSpaceDocument object to convert
         optimize: Whether to optimize the output (default True)
+        vars_threshold: Minimum frequency for auto-generating avar2 variables.
+                       0 = disabled, 3 = default (values appearing 3+ times)
+        avar2_format: Format for avar2 output - "matrix" (default) or "linear"
 
     Returns:
         DSSketch format string
@@ -158,14 +179,19 @@ def convert_designspace_to_dss_string(
         ds = DesignSpaceDocument()
         ds.read("MyFont.designspace")
 
-        # Convert to DSSketch string
+        # Convert to DSSketch string (default settings)
         dss_content = dssketch.convert_designspace_to_dss_string(ds)
-        print(dss_content)
+
+        # Convert without variables
+        dss_content = dssketch.convert_designspace_to_dss_string(ds, vars_threshold=0)
+
+        # Convert with linear format
+        dss_content = dssketch.convert_designspace_to_dss_string(ds, avar2_format="linear")
     """
     # Convert DesignSpace to DSS document
-    converter = DesignSpaceToDSS()
+    converter = DesignSpaceToDSS(vars_threshold=vars_threshold)
     dss_doc = converter.convert(designspace)
 
     # Write DSS document to string
-    writer = DSSWriter(optimize=optimize)
+    writer = DSSWriter(optimize=optimize, avar2_format=avar2_format)
     return writer.write(dss_doc)
