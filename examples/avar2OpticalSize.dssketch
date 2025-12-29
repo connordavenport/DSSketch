@@ -5,8 +5,9 @@ axes
     wdth 50:100:150 "Width"
     opsz 6:16:144 "Optical size"
 
-avar2
-    [opsz=6, wght=400, wdth=100] > wght=600, wdth=125
-    [opsz=144, wght=400, wdth=100] > wght=200, wdth=75
+avar2 matrix
+    outputs                         wght  wdth
+    [opsz=6, wght=400, wdth=100]    600   125 
+    [opsz=144, wght=400, wdth=100]  200   75  
 
-instances auto
+instances off

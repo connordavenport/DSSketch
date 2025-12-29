@@ -1,0 +1,21 @@
+family Unknown
+
+axes
+    wght 1:400:1000 "Weight"
+    wdth 50:100:150 "Width"
+    opsz 6:16:144 "Optical size"
+
+avar2
+    [wght=1] > wght=1
+    [wght=100] > wght=300
+    [wght=400] > wght=$
+    [wght=700] > wght=600
+    [wght=900] > wght=700
+    [wght=1000] > wght=1000
+    [wdth=50] > wdth=50
+    [wdth=75] > wdth=90
+    [wdth=100] > wdth=$
+    [wdth=125] > wdth=110
+    [wdth=150] > wdth=150
+
+instances off

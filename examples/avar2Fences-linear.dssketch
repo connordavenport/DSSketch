@@ -1,0 +1,18 @@
+family Unknown
+
+axes
+    wght 1:400:1000 "Weight"
+    wdth 50:100:150 "Width"
+    opsz 6:16:144 "Optical size"
+
+avar2 vars
+    $wght1 = 600
+
+avar2
+    [wght=1000, wdth=50] > wght=$wght1, wdth=50
+    [wght=1000, wdth=90] > wght=$wght1, wdth=90
+    [wght=600, wdth=50] > wght=$wght1, wdth=50
+    [wght=600, wdth=90] > wght=$wght1, wdth=90
+    [wght=1000, wdth=90.02] > wght=1000, wdth=90.02
+
+instances off

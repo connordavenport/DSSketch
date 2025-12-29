@@ -8,7 +8,7 @@ axes hidden
     BBBB 0:0:90
 
 avar2
-    [ZROT=0] > AAAA=0, BBBB=0
+    [ZROT=0] > AAAA=$, BBBB=$
     [ZROT=90] > AAAA=90, BBBB=90
 
-instances auto
+instances off

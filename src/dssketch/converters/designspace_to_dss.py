@@ -107,11 +107,26 @@ class DesignSpaceToDSS:
         return dss_doc
 
     def _extract_family_name(self, ds_doc: DesignSpaceDocument) -> str:
-        """Extract family name from DesignSpace document"""
-        if ds_doc.instances:
-            return ds_doc.instances[0].familyName or "Unknown"
-        elif ds_doc.sources:
-            return ds_doc.sources[0].familyName or "Unknown"
+        """Extract family name from default source in DesignSpace document"""
+        # First try to find default source (copyLib=True or matching default coordinates)
+        default_source = None
+        for source in ds_doc.sources:
+            if source.copyLib:
+                default_source = source
+                break
+
+        # If no copyLib, find source at default coordinates
+        if not default_source and ds_doc.sources:
+            default_location = {axis.name: axis.default for axis in ds_doc.axes}
+            for source in ds_doc.sources:
+                if source.location == default_location:
+                    default_source = source
+                    break
+
+        # Extract family name from default source
+        if default_source and default_source.familyName:
+            return default_source.familyName
+
         return "Unknown"
 
     def _determine_sources_path(self, ds_doc: DesignSpaceDocument) -> Optional[str]:

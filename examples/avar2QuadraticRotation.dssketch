@@ -7,8 +7,9 @@ axes hidden
     AAAA 0:0:90
     BBBB 0:0:90
 
-avar2
-    [ZROT=0] > AAAA=0, BBBB=0
-    [ZROT=90] > AAAA=90, BBBB=90
+avar2 matrix
+    outputs    AAAA  BBBB
+    [ZROT=0]   $     $   
+    [ZROT=90]  90    90  
 
-instances auto
+instances off
