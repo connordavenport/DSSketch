@@ -4,18 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dssketch"
-version = "1.1.3"
+version = "1.1.4"
 description = "Human-friendly alternative to DesignSpace XML - provides simple, intuitive text format for variable font design with 84-97% size reduction"
 authors = [{name = "Alexander Lubovenko", email = "lubovenko@gmail.com"}]
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.8"
 keywords = ["fonts", "designspace", "variable-fonts", "typography", "font-design", "ufo-fonts"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Text Processing :: Fonts",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
