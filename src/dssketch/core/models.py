@@ -105,5 +105,6 @@ class DSSDocument:
     instances_skip: List[str] = field(default_factory=list)  # Instance combinations to skip (e.g., ["Bold Italic", "Light Italic"])
     # avar2 support
     avar2_vars: Dict[str, float] = field(default_factory=dict)  # Variable definitions: $name -> value
+    avar2_vars_counts: Dict[str, int] = field(default_factory=dict)  # Variable frequency counts: $name -> count
     avar2_mappings: List[DSSAvar2Mapping] = field(default_factory=list)  # avar2 mappings
 

@@ -126,7 +126,11 @@ class DSSWriter:
         if dss_doc.avar2_vars:
             lines.append("avar2 vars")
             for var_name, var_value in dss_doc.avar2_vars.items():
-                lines.append(f"    ${var_name} = {self._format_number(var_value)}")
+                count = dss_doc.avar2_vars_counts.get(var_name, 0)
+                if count > 0:
+                    lines.append(f"    ${var_name} = {self._format_number(var_value)}  # used {count} times")
+                else:
+                    lines.append(f"    ${var_name} = {self._format_number(var_value)}")
             lines.append("")
 
         # avar2 mappings section

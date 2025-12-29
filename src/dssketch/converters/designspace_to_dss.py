@@ -80,7 +80,7 @@ class DesignSpaceToDSS:
 
             # Generate variables for repeated values (named $axis1 to avoid confusion with axis.default)
             if self.vars_threshold > 0:
-                dss_doc.avar2_vars = self._extract_avar2_variables_from_dss(
+                dss_doc.avar2_vars, dss_doc.avar2_vars_counts = self._extract_avar2_variables_from_dss(
                     dss_doc.avar2_mappings, self.vars_threshold
                 )
 
@@ -486,7 +486,7 @@ class DesignSpaceToDSS:
 
         return hidden_axes
 
-    def _extract_avar2_variables_from_dss(self, dss_mappings, threshold: int = 3) -> dict:
+    def _extract_avar2_variables_from_dss(self, dss_mappings, threshold: int = 3) -> tuple:
         """Extract repeated values from CONVERTED DSS avar2 mappings to create variables
 
         If a value appears threshold+ times across all output locations,
@@ -502,7 +502,9 @@ class DesignSpaceToDSS:
             threshold: Minimum frequency for creating a variable (default: 3)
 
         Returns:
-            Dict of variable_name (axis_tag + counter) -> value (without $ prefix)
+            Tuple of (variables, counts):
+                - variables: Dict of variable_name (axis_tag + counter) -> value (without $ prefix)
+                - counts: Dict of variable_name -> frequency count
         """
         # Count value occurrences per axis
         axis_value_counts = {}  # {axis_tag: {value: count}}
@@ -517,6 +519,7 @@ class DesignSpaceToDSS:
 
         # Create variables for values that appear threshold+ times
         variables = {}
+        counts = {}
         axis_counters = {}  # Track counter per axis
 
         for axis_tag, value_counts in axis_value_counts.items():
@@ -533,8 +536,9 @@ class DesignSpaceToDSS:
                     # Use axis tag + counter as variable name
                     var_name = f"{axis_tag}{axis_counters[axis_tag]}"
                     variables[var_name] = value
+                    counts[var_name] = count
 
-        return variables
+        return variables, counts
 
     def _extract_avar2_variables(self, axis_mappings) -> dict:
         """Extract repeated values from avar2 mappings to create variables
