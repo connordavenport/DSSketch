@@ -1520,20 +1520,26 @@ class DSSParser:
     def _resolve_avar2_value(self, value_str: str, axis_name: str) -> float:
         """Resolve avar2 value - could be numeric, label, or variable
 
+        For avar2 INPUT: labels resolve to USER SPACE values (e.g., Regular=400)
+        This is semantically correct: labels always mean user space.
+        The converter will transform user → design for DesignSpace XML.
+
+        For avar2 OUTPUT: numeric values are DESIGN SPACE (no label resolution needed)
+
         Args:
             value_str: The value string to resolve
             axis_name: The axis this value applies to (for label lookup)
 
         Returns:
-            Resolved numeric value
+            Resolved numeric value (user space for labels, as-is for numbers)
         """
-        # Try numeric first
+        # Try numeric first (design space value, used as-is)
         try:
             return float(value_str)
         except ValueError:
             pass
 
-        # Try variable reference
+        # Try variable reference (design space value)
         if value_str.startswith("$"):
             var_name = value_str[1:]
             if var_name in self.document.avar2_vars:
@@ -1543,13 +1549,16 @@ class DSSParser:
                 return 0.0
 
         # Try label lookup from axis mappings
+        # Labels resolve to USER SPACE values (not design space!)
         # Check both regular and hidden axes
         all_axes = self.document.axes + self.document.hidden_axes
         for axis in all_axes:
             if axis.name == axis_name or axis.tag == axis_name:
                 for mapping in axis.mappings:
                     if mapping.label == value_str:
-                        return mapping.design_value
+                        # Return user_value, not design_value!
+                        # This keeps labels semantically consistent everywhere
+                        return mapping.user_value
 
         # Label not found - it might be a typo or undefined label
         self.validator.warnings.append(

@@ -265,10 +265,10 @@ class DSSToDesignSpace:
     def _convert_avar2_mapping(self, dss_mapping, dss_doc: DSSDocument) -> AxisMappingDescriptor:
         """Convert DSS avar2 mapping to DesignSpace AxisMappingDescriptor
 
-        DSS format:
+        DSS format (input in USER space, output in DESIGN space):
             [opsz=Display, wght=Bold] > XOUC=84, YTUC=$YTUC
 
-        DesignSpace XML format:
+        DesignSpace XML format (everything in DESIGN space):
             <mapping description="name">
                 <input>
                     <dimension name="Optical size" xvalue="144"/>
@@ -279,6 +279,9 @@ class DSSToDesignSpace:
                     <dimension name="YTUC" xvalue="750"/>
                 </output>
             </mapping>
+
+        The parser stores input values in USER space (labels resolve to user values).
+        This method converts them to DESIGN space for DesignSpace XML.
         """
         mapping = AxisMappingDescriptor()
 
@@ -287,15 +290,17 @@ class DSSToDesignSpace:
             mapping.description = dss_mapping.name
 
         # Convert input conditions
-        # Input uses axis names/tags from DSS, need to resolve to DesignSpace axis names
+        # Input is in USER space (from parser), convert to DESIGN space for DesignSpace XML
         mapping.inputLocation = {}
-        for axis_key, value in dss_mapping.input.items():
+        for axis_key, user_value in dss_mapping.input.items():
             # Find the axis name in DesignSpace (handles tag -> name conversion)
             axis_name = self._resolve_axis_name(axis_key, dss_doc)
-            mapping.inputLocation[axis_name] = value
+            # Convert user space → design space
+            design_value = self._user_to_design_value(axis_key, user_value, dss_doc)
+            mapping.inputLocation[axis_name] = design_value
 
         # Convert output assignments
-        # Output typically uses hidden axis names (which are their tags)
+        # Output is already in DESIGN space (no conversion needed)
         mapping.outputLocation = {}
         for axis_key, value in dss_mapping.output.items():
             # For output, we also need to resolve the axis name
@@ -303,6 +308,37 @@ class DSSToDesignSpace:
             mapping.outputLocation[axis_name] = value
 
         return mapping
+
+    def _user_to_design_value(self, axis_key: str, user_value: float, dss_doc: DSSDocument) -> float:
+        """Convert user space value to design space value for an axis.
+
+        Looks up the axis mapping to find the design value corresponding to the user value.
+        If no exact mapping is found, returns the user value as-is (they might be equal).
+
+        Args:
+            axis_key: Axis name or tag
+            user_value: Value in user space
+            dss_doc: DSS document with axis definitions
+
+        Returns:
+            Corresponding design space value
+        """
+        # Search in both regular and hidden axes
+        all_axes = dss_doc.axes + dss_doc.hidden_axes
+
+        for axis in all_axes:
+            if axis.name == axis_key or axis.tag == axis_key:
+                # Look for a mapping with this user_value
+                for mapping in axis.mappings:
+                    if mapping.user_value == user_value:
+                        return mapping.design_value
+
+                # No exact mapping found - user and design might be equal
+                # This is common for axes without explicit mappings
+                return user_value
+
+        # Axis not found - return as-is
+        return user_value
 
     def _resolve_axis_name(self, axis_key: str, dss_doc: DSSDocument) -> str:
         """Resolve axis key (name or tag) to the axis name used in DesignSpace
