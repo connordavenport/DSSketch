@@ -1010,7 +1010,7 @@ avar2
 ```
 
 **Interpretation:**
-- When user requests `font-weight: 400` (Regular) at `font-stretch: 80%` (Condensed)
+- When user requests Regular and Condensed
 - The font will use design coordinate 385 instead of the default 435
 - This allows the font to optically compensate for the condensed width
 
@@ -1089,12 +1089,12 @@ axes
         Wide > 125
 
 sources [wght, wdth]
-    Regular-Normal [435, 100] @base
-    Regular-Condensed [385, 75]    # Note: different design value at Condensed!
-    Bold-Condensed [650, 75]
+    Regular-Normal [Regular, Normal] @base
+    Bold [Bold, Normal]
+    .....
 
 avar2
-    # Labels resolve to USER space: Regular=400, Condensed=80 (CSS standard)
+    # Labels resolve to USER space: Regular=400, Condensed=80
     # Output is DESIGN space
     [wght=Regular, wdth=Condensed] > wght=385
     [wght=Bold, wdth=Condensed] > wght=650
